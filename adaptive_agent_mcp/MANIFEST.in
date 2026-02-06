@@ -1,0 +1,7 @@
+include README.md
+include LICENSE
+include CHANGELOG.md
+recursive-include adaptive_agent_mcp *.py
+recursive-include adaptive_agent_mcp/src *.py
+recursive-include adaptive_agent_mcp/docs *.md
+recursive-include adaptive_agent_mcp/config_examples *.json

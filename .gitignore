@@ -1,0 +1,48 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Agent and development files
+.agent/
+
+# Project-specific exclusions
+docs/implementation_plan.md
+docs/AI记忆系统架构.md
+docs/PyPI发布指南.md
+
+# Test artifacts
+smoke_test.py
+verify_full.py
+
+# OS files
+.DS_Store
+Thumbs.db

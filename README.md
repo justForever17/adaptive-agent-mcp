@@ -1,0 +1,272 @@
+<div align="center">
+
+# <b><span style="background: linear-gradient(120deg, #84fab0 0%, #8fd3f4 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Adaptive Agent MCP</span></b>
+
+### **让你的 AI 真正"记住"你**
+
+> _"我已经告诉 Claude 我喜欢 TypeScript 100遍了，为什么它还在给我写 JavaScript？"_
+> 
+> _"上周 Cursor 帮我实现的组件架构，今天怎么又从头问我？"_
+
+**这就是 Adaptive Agent MCP 要解决的问题。**
+
+一个基于 MCP 协议的**跨应用持久化记忆系统**。无论你用 Claude Code、Cursor、Antigravity 还是其他任何支持 MCP 的工具——你的偏好、项目上下文、知识积累，都将**永久记住、随时调用、跨平台共享**。
+
+**一次教会，终生受用。不再重复，不再遗忘。**
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![MCP](https://img.shields.io/badge/MCP-Protocol-green.svg)](https://modelcontextprotocol.io)
+
+</div>
+
+---
+
+## 它是如何工作的？
+
+```
+在 Claude Code 中: "记住，我喜欢使用 TypeScript"
+在 Antigravity 中: "我的编程偏好是什么？"
+AI: "你喜欢使用 TypeScript"
+```
+
+在任何支持 MCP 的应用中都可快速接入，**真正实现 AI 记忆的跨平台无缝流转**。
+
+---
+
+## 记忆不会混乱吗？——Scope 作用域机制
+
+> _"如果所有项目共享记忆，那项目 A 的偏好会不会污染项目 B？"_
+
+**不会。** 我们设计了 **Scope（作用域）** 机制来精确控制记忆的边界：
+
+| 作用域类型 | 适用场景 | 示例 |
+|-----------|---------|------|
+| **global** | 通用偏好，所有项目都适用 | "我喜欢 TypeScript" |
+| **project:xxx** | 项目专属规范，只在该项目生效 | "这个项目用 vanilla CSS" |
+
+### 实际使用示例
+
+```
+你: "在这个项目中，我们使用 vanilla CSS 而不是 Tailwind"
+AI: 收到！我已将这个偏好保存到 project:landing-page 作用域
+
+你: (切换到另一个项目) "我的 CSS 偏好是什么？"
+AI: 你通常喜欢 Tailwind CSS（全局偏好）
+```
+
+### 查询时的智能过滤
+
+- 在**项目 A** 中查询 → 返回 **全局知识 + 项目A专属知识**
+- 在**项目 B** 中查询 → 返回 **全局知识 + 项目B专属知识**（项目A的不会出现）
+
+**结论**: 既享受跨平台共享全局偏好的便利，又保证项目级配置的隔离。
+
+---
+
+## 快速开始
+
+### 快速安装
+
+<details open>
+<summary><b>VS Code / Cherry studio / Antigravity / Claude Code / 等任何支持 MCP 的 AI 应用</b></summary>
+
+配置 `mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "adaptive-agent-mcp": {
+      "command": "uvx",
+      "args": ["adaptive-agent-mcp"]
+    }
+  }
+}
+```
+
+</details>
+
+<details>
+<summary><b>Claude Code</b></summary>
+
+```bash
+claude mcp add adaptive-memory \
+  --type stdio \
+  --command uvx \
+  --args "adaptive-agent-mcp"
+```
+
+</details>
+
+> 不指定 `--storage-path` 时，使用默认路径 `~/.adaptive-agent/memory`，所有应用共享同一份记忆。
+
+---
+
+## 项目结构
+
+```
+.
+├── docs/                        # 完整文档
+├── adaptive_agent_mcp/          # 主项目目录
+│   ├── server.py                # MCP 服务器入口
+│   ├── src/                     # 源代码
+│   │   ├── config.py            # 配置管理
+│   │   ├── storage.py           # 存储层
+│   │   ├── indexer.py           # 索引系统
+│   │   ├── search_engine.py     # 搜索引擎
+│   │   └── tools/               # MCP 工具
+│   └── README.md                # 项目详细文档
+├── smoke_test.py                # 烟雾测试
+└── verify_full.py               # 完整功能测试
+```
+
+---
+
+## 特性
+
+| 特性 | 说明 |
+|------|------|
+| **跨应用记忆互通** | 多个 AI 应用共享同一份记忆 |
+| **Scope 作用域隔离** | 全局偏好 vs 项目专属配置，互不干扰 |
+| **三层记忆架构** | 知识图谱 + 每日笔记 + 隐性知识 |
+| **高效检索** | 基于 JSON 索引的 O(1) 查询，支持 ripgrep 全文搜索 |
+| **时间权威** | MCP 是唯一时间来源，防止 Agent 时间幻觉 |
+| **知识演化** | 支持事实版本管理和 supersede 机制 |
+| **自动初始化** | 首次运行自动创建目录结构 |
+
+---
+
+## 建议安装：ripgrep
+
+全文搜索功能依赖 [ripgrep](https://github.com/BurntSushi/ripgrep)，如需使用 `search_memory_content` 工具请安装：
+
+<details>
+<summary><b>安装方法</b></summary>
+
+**Windows (推荐)**:
+```powershell
+winget install BurntSushi.ripgrep.MSVC
+```
+
+**macOS**:
+```bash
+brew install ripgrep
+```
+
+**Linux**:
+```bash
+# Ubuntu/Debian
+sudo apt install ripgrep
+
+# Arch
+sudo pacman -S ripgrep
+```
+
+**手动配置环境变量** (如自动检测失败):
+```bash
+# Windows: 将 rg.exe 所在目录添加到 PATH
+# 或设置环境变量
+ADAPTIVE_AGENT_RIPGREP_PATH=C:\path\to\rg.exe
+```
+
+</details>
+
+---
+
+## MCP 工具
+
+| 工具 | 功能 |
+|------|------|
+| `initialize_session` | 会话初始化，每次对话必须首先调用 |
+| `query_memory_headers` | 索引扫描，快速查找记忆位置 |
+| `read_memory_content` | 读取指定文件的完整内容 |
+| `search_memory_content` | 基于 ripgrep 的全文搜索 |
+| `append_daily_log` | 写入每日笔记或知识图谱 |
+| `query_knowledge` | 查询知识库中的已保存知识 |
+| `get_period_context` | 聚合周/月日志用于总结 |
+| `archive_period` | 保存周期总结 |
+
+---
+
+## 文档
+
+- [快速开始](./docs/快速开始.md)
+- [使用指南](./docs/使用指南.md)
+- [架构设计](./docs/架构设计.md)
+- [使用场景示例](./docs/使用场景示例.md)
+- [项目详细文档](./adaptive_agent_mcp/README.md)
+
+---
+
+<details>
+<summary><b>开发安装</b></summary>
+
+```bash
+git clone https://github.com/justforever17/adaptive-agent-mcp.git
+cd adaptive-agent-mcp
+
+# 安装依赖
+pip install -e .
+
+# 可选：安装 ripgrep 以启用全文搜索
+# Windows: choco install ripgrep
+# macOS: brew install ripgrep
+```
+
+</details>
+
+<details>
+<summary><b>项目级记忆隔离 (可选)</b></summary>
+
+如果希望每个项目使用独立的记忆，可以指定 `--storage-path`:
+
+```json
+{
+  "mcpServers": {
+    "adaptive-agent-mcp": {
+      "command": "uvx",
+      "args": [
+        "adaptive-agent-mcp",
+        "--storage-path",
+        "${workspaceFolder}/.agent_memory"
+      ]
+    }
+  }
+}
+```
+
+</details>
+
+---
+
+## 贡献
+
+欢迎提交 Issue 和 Pull Request。
+
+---
+
+## 许可证
+
+MIT License - 详见 [LICENSE](./LICENSE)
+
+---
+
+## 致谢
+
+- [Anthropic](https://www.anthropic.com/) - MCP 协议创建者
+- [FastMCP](https://github.com/jlowin/fastmcp) - 简化 MCP 开发
+- [ripgrep](https://github.com/BurntSushi/ripgrep) - 高性能搜索引擎
+
+---
+
+## 💖 赞助 (Sponsorship)
+
+维护开源项目不易，如果您觉得 adaptive-agent-mcp 对您有帮助，欢迎请作者喝杯咖啡！
+
+<div align="center">
+
+| 平台 | 链接 | 支付方式 |
+| :--- | :--- | :--- |
+| **爱发电 (Afdian)** | [![Afdian](https://img.shields.io/badge/Afdian-支持我-946ce6?logo=afdian)](https://afdian.com/a/justforever17) | 微信, 支付宝 |
+
+</div>
