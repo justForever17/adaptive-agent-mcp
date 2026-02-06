@@ -8,7 +8,7 @@ from ..memory_parser import MemoryParser
 @mcp.tool()
 def initialize_session() -> str:
     """
-    🔴 **必须首先调用** - 每次对话开始时调用此工具初始化会话。
+    [CRITICAL] **每次对话必须首先调用** - 初始化会话并加载用户画像。
     
     ## 返回内容
     1. **系统时间**: 真实的当前日期时间 (防止时间幻觉)

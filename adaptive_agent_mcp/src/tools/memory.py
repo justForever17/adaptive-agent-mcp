@@ -16,7 +16,7 @@ def update_preference(
     scope: str = "global"
 ) -> str:
     """
-    **智能更新用户偏好** - 自动覆盖同 key 的旧值，保持格式整洁。
+    [SAVE] **保存用户偏好** - 当用户说"记住"、"以后都..."时调用。
     
     ## 触发时机 (WHEN TO CALL)
     当用户表达**持久性偏好**时调用：
@@ -72,7 +72,7 @@ def append_daily_log(
     scope: Optional[str] = None
 ) -> str:
     """
-    **写入记忆** - 当需要保存信息时调用此工具。
+    [SAVE] **写入记忆** - 当用户要求保存信息或任务完成时调用。
     
     ## 触发时机 (WHEN TO CALL)
     当用户说出以下关键词时，**必须**调用此工具：

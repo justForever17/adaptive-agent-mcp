@@ -174,6 +174,19 @@ AI: 已完成代码重构，以下是变更说明...
 
 > 不指定 `--storage-path` 时，使用默认路径 `~/.adaptive-agent/memory`，所有应用共享同一份记忆。
 
+### 增强 Agent 记忆行为 (可选)
+
+如果 AI 不主动读写记忆，可将以下内容添加到你的 system prompt 或 user rules：
+
+```
+## 记忆系统指令
+
+- 每次对话开始时，调用 `initialize_session` 加载用户偏好。
+- 当用户说"记住"、"保存"或表达偏好时，调用 `update_preference` 或 `append_daily_log`。
+- 任务完成后，使用 `append_daily_log` 简要记录进展。
+- 用户问"之前..."、"上次..."时，使用 `query_memory_headers` 或 `search_memory_content` 查询。
+```
+
 ---
 
 ## 项目结构

@@ -118,6 +118,19 @@ Configure `mcp.json` in any MCP-compatible AI application:
 
 > Default storage path: `~/.adaptive-agent/memory`. All apps share the same memory.
 
+### Enhance Agent Memory Behavior (Optional)
+
+If your AI doesn't actively read/write memory, add this to your system prompt or user rules:
+
+```
+## Memory System Instructions
+
+- At the start of each conversation, call `initialize_session` to load user preferences.
+- When user says "remember", "save", or expresses preferences, call `update_preference` or `append_daily_log`.
+- After completing tasks, briefly record progress using `append_daily_log`.
+- When user asks about past conversations, use `query_memory_headers` or `search_memory_content`.
+```
+
 ---
 
 ## Features
