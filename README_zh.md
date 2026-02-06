@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="assets/logo.svg" alt="Adaptive Agent MCP" width="500">
+<img src="https://raw.githubusercontent.com/justforever17/adaptive-agent-mcp/main/assets/logo.svg" alt="Adaptive Agent MCP" width="500">
 
 ### **Self-Evolving RAG for AI Agents**
 
