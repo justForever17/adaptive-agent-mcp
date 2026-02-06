@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🧠 Adaptive Agent MCP
+<img src="assets/logo.svg" alt="Adaptive Agent MCP" width="500">
 
 ### **Self-Evolving RAG for AI Agents**
 
