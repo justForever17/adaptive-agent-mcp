@@ -17,7 +17,7 @@
 
 ---
 
-## 🎯 核心理念
+## 核心理念
 
 <table>
 <tr>
@@ -52,24 +52,24 @@
 
 | | 传统 RAG | Adaptive Agent MCP |
 |:---:|:---|:---|
-| 📖 | 检索预先索引的文档 | Agent 运行时动态积累 |
-| ✍️ | 人类维护知识库 | **Agent 自主写入** |
-| 🎯 | 通用知识 | **用户专属记忆** |
-| 🔄 | 静态数据 | **随对话持续进化** |
+| 读 | 检索预先索引的文档 | Agent 运行时动态积累 |
+| 写 | 人类维护知识库 | **Agent 自主写入** |
+| 范围 | 通用知识 | **用户专属记忆** |
+| 状态 | 静态数据 | **随对话持续进化** |
 
 ---
 
-## ✨ 它是如何工作的？
+## 它是如何工作的？
 
 ```
-📍 在 Claude Code 中: "记住，我喜欢使用 TypeScript"
+在 Claude Code 中: "记住，我喜欢使用 TypeScript"
          ↓
     Agent 自动调用:
     • append_daily_log() → 记录到日志
     • update_preference() → 更新偏好
     • extract_knowledge() → 抽取知识图谱
          ↓
-📍 在 Antigravity 中: "我的编程偏好是什么？"
+在 Antigravity 中: "我的编程偏好是什么？"
          ↓
     AI: "你喜欢使用 TypeScript"
 ```
@@ -375,7 +375,7 @@ MIT License - 详见 [LICENSE](./LICENSE)
 
 ---
 
-## 💖 赞助 (Sponsorship)
+## 赞助 (Sponsorship)
 
 维护开源项目不易，如果您觉得 adaptive-agent-mcp 对您有帮助，欢迎请作者喝杯咖啡！
 

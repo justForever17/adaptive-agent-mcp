@@ -17,7 +17,7 @@
 
 ---
 
-## 🎯 Core Concept
+## Core Concept
 
 <table>
 <tr>
@@ -52,24 +52,24 @@ User Input → Retrieve Memory → Generate
 
 | | Traditional RAG | Adaptive Agent MCP |
 |:---:|:---|:---|
-| 📖 | Retrieves pre-indexed documents | Dynamically accumulates at runtime |
-| ✍️ | Human-maintained knowledge base | **Agent writes autonomously** |
-| 🎯 | Generic knowledge | **User-specific memory** |
-| 🔄 | Static data | **Continuously evolves** |
+| Read | Retrieves pre-indexed documents | Dynamically accumulates at runtime |
+| Write | Human-maintained knowledge base | **Agent writes autonomously** |
+| Scope | Generic knowledge | **User-specific memory** |
+| State | Static data | **Continuously evolves** |
 
 ---
 
-## ✨ How It Works
+## How It Works
 
 ```
-📍 In Claude Code: "Remember, I prefer TypeScript"
+In Claude Code: "Remember, I prefer TypeScript"
          ↓
     Agent automatically calls:
     • append_daily_log() → Record to daily log
     • update_preference() → Update preferences
     • extract_knowledge() → Extract knowledge graph
          ↓
-📍 In Antigravity: "What are my coding preferences?"
+In Antigravity: "What are my coding preferences?"
          ↓
     AI: "You prefer TypeScript"
 ```
@@ -78,7 +78,7 @@ User Input → Retrieve Memory → Generate
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Installation
 
@@ -120,7 +120,7 @@ Configure `mcp.json` in any MCP-compatible AI application:
 
 ---
 
-## 🧩 Features
+## Features
 
 | Feature | Description | Version |
 |:---|:---|:---:|
@@ -134,7 +134,7 @@ Configure `mcp.json` in any MCP-compatible AI application:
 
 ---
 
-## 🔧 Available Tools
+## Available Tools
 
 ### Memory Management
 | Tool | Description |
@@ -163,7 +163,7 @@ Configure `mcp.json` in any MCP-compatible AI application:
 
 ---
 
-## 📁 Storage Structure
+## Storage Structure
 
 ```
 ~/.adaptive-agent/memory/
@@ -182,7 +182,7 @@ Configure `mcp.json` in any MCP-compatible AI application:
 
 ---
 
-## 🔐 Data Safety
+## Data Safety
 
 - **Isolated storage**: Data stored in `~/.adaptive-agent/memory`, independent of uvx installation
 - **Concurrent safety**: filelock prevents data corruption from multiple clients
@@ -190,7 +190,7 @@ Configure `mcp.json` in any MCP-compatible AI application:
 
 ---
 
-## 📖 Documentation
+## Documentation
 
 - [Architecture Design](docs/架构设计.md) (Chinese)
 - [Local Model Setup](docs/setup_local_model.md)
@@ -198,7 +198,7 @@ Configure `mcp.json` in any MCP-compatible AI application:
 
 ---
 
-## 📄 License
+## License
 
 MIT License - See [LICENSE](LICENSE) for details.
 
