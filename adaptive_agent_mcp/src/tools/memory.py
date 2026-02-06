@@ -6,6 +6,62 @@ from ...server import mcp
 from ..config import config
 from ..storage import StorageValidation
 from ..indexer import indexer
+from ..memory_parser import MemoryParser
+
+@mcp.tool()
+def update_preference(
+    key: str,
+    value: str,
+    scope: str = "global"
+) -> str:
+    """
+    **智能更新用户偏好** - 自动覆盖同 key 的旧值，保持格式整洁。
+    
+    ## 触发时机 (WHEN TO CALL)
+    当用户表达**持久性偏好**时调用：
+    - "我喜欢...", "以后都用...", "记住我的风格是..."
+    - "写代码时要...", "跟我聊天时要..."
+    - "这个项目使用..."
+    
+    ## Scope 参数使用指南 (语义理解驱动)
+    
+    根据**对话意图**推断 scope，无需用户明确说明：
+    
+    | 用户在做什么 | 应使用的 scope | 示例 |
+    |-------------|---------------|------|
+    | 与你闲聊、表达情感偏好 | `app:chat` | "说话甜一点" |
+    | 讨论代码、技术规范 | `app:coding` | "代码注释用英文" |
+    | 写文档、文案相关 | `app:writing` | "写作风格正式" |
+    | 在具体项目中设置规范 | `project:{项目名}` | "这个项目用 React" |
+    | 设置通用偏好 | `global` | "我的语言是中文" |
+    
+    ## 常用 key 值
+    - `communication_style`: 交流风格 (如 "年轻女性、卖萌撒娇" 或 "专业严谨")
+    - `use_kaomoji`: 是否使用颜文字 (true/false)
+    - `language`: 语言偏好 (zh-CN, en-US)
+    - `code_style`: 代码风格偏好
+    - `css_framework`: CSS 框架偏好
+    
+    ## 示例
+    ```python
+    # 闲聊时要卖萌
+    update_preference("communication_style", "年轻女性、卖萌撒娇", "app:chat")
+    
+    # 写代码时要严谨
+    update_preference("communication_style", "专业严谨", "app:coding")
+    
+    # 全局使用颜文字
+    update_preference("use_kaomoji", "true", "global")
+    ```
+    """
+    try:
+        memory = MemoryParser().load()
+        memory.set(key, value, scope)
+        saved_path = memory.save()
+        return f"✓ 已保存偏好 `{key}` = `{value}` 到 [{scope}] (文件: {saved_path})"
+    except Exception as e:
+        return f"Error updating preference: {e}"
+
 
 @mcp.tool()
 def append_daily_log(
@@ -42,8 +98,9 @@ def append_daily_log(
     })
     ```
     
-    ### 3. 用户偏好 (永久)
-    用于用户习惯、风格偏好、工作方式：
+    ### 3. 用户偏好 (永久) - 推荐使用 update_preference
+    对于用户偏好，**优先使用 `update_preference` 工具**，它会智能覆盖旧值。
+    如果仍要使用此工具：
     ```
     append_daily_log(atomic_fact={
         "fact": "用户喜欢使用 Tailwind CSS",
@@ -51,14 +108,16 @@ def append_daily_log(
     })
     ```
     
-    ### 4. 项目特定知识 (scope)
-    当用户说"在这个项目中"、"这个仓库"时使用 scope：
-    ```
-    append_daily_log(
-        atomic_fact={"fact": "使用 vanilla CSS", "category": "user_preference"},
-        scope="project:landing-page"
-    )
-    ```
+    ### 4. Scope 参数 (语义理解驱动)
+    
+    根据**对话意图**推断 scope：
+    
+    | 用户在做什么 | 应使用的 scope |
+    |-------------|---------------|
+    | 与你闲聊、表达情感偏好 | app:chat |
+    | 讨论代码、技术规范 | app:coding |
+    | 在具体项目中设置规范 | project:{项目名} |
+    | 设置通用偏好 | global |
     
     **注意**: 不要询问日期，系统自动记录时间戳。
     """
@@ -88,14 +147,31 @@ def append_daily_log(
             return "Error: atomic_fact must contain a non-empty 'fact' string field."
         
         category = atomic_fact.get("category", "general")
-        # Define storage strategies based on category
+        
+        # 对于 user_preference，使用新的 MemoryParser
         if category == "user_preference":
-            target_file = config.storage_path / "MEMORY.md"
-            fact_str = f"- {fact_content}"
-            if scope and scope != "global":
-                fact_str = f"- [{scope}] {fact_content}"
-            StorageValidation.append_to_file(target_file, f"\n{fact_str}")
-            return "Updated User Profile in MEMORY.md"
+            try:
+                memory = MemoryParser().load()
+                # 尝试从 fact 中提取 key-value
+                # 格式可能是 "用户喜欢使用 Tailwind CSS" → key=css_preference, value=Tailwind CSS
+                # 或者直接作为 note 存储
+                effective_scope = scope or "global"
+                
+                # 简单的 key 推断逻辑
+                if "喜欢" in fact_content or "偏好" in fact_content:
+                    key = "preference_note"
+                elif "风格" in fact_content:
+                    key = "style_note"
+                else:
+                    key = "user_note"
+                
+                # 添加时间戳使 key 唯一
+                key = f"{key}_{now.strftime('%H%M%S')}"
+                memory.set(key, fact_content, effective_scope)
+                memory.save()
+                return f"Updated User Preference in MEMORY.md [{effective_scope}]"
+            except Exception as e:
+                return f"Error updating preference: {e}"
         
         else: # Domain Knowledge
             target_dir = config.storage_path / "knowledge" / "areas" / "general"
@@ -138,6 +214,7 @@ def append_daily_log(
             return f"Added Atomic Fact {atomic_fact['id']} (scope: {atomic_fact['scope']}) to {target_file}"
 
     return "No content or fact provided."
+
 
 @mcp.tool()
 def query_knowledge(scope: Optional[str] = None, category: Optional[str] = None) -> str:

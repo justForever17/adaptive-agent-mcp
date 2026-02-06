@@ -59,6 +59,13 @@ class StorageValidation:
         """Append content to a file with newline handling."""
         if not path.parent.exists():
              path.parent.mkdir(parents=True, exist_ok=True)
+        
+        # Decode unicode escape sequences if present (e.g., \u4eca -> 今)
+        try:
+            if '\\u' in content or '\\n' in content:
+                content = content.encode('utf-8').decode('unicode_escape')
+        except Exception:
+            pass  # Keep original content if decode fails
              
         with open(path, "a", encoding="utf-8") as f:
             if path.exists() and path.stat().st_size > 0:

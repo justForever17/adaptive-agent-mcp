@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "adaptive-agent-mcp"
-version = "0.1.0"
+version = "0.2.0"
 description = "让你的 AI 真正记住你 — 基于 MCP 协议的跨应用持久化记忆系统"
 readme = "README.md"
 license = "MIT"
@@ -35,7 +35,8 @@ classifiers = [
 dependencies = [
     "mcp>=1.1.0",
     "pydantic>=2.0.0",
-    "pydantic-settings>=2.0.0"
+    "pydantic-settings>=2.0.0",
+    "PyYAML>=6.0"
 ]
 
 [project.urls]
