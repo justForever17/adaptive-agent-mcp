@@ -133,8 +133,12 @@ claude mcp add adaptive-memory \
 │   ├── src/                     # 源代码
 │   │   ├── config.py            # 配置管理
 │   │   ├── storage.py           # 存储层
-│   │   ├── indexer.py           # 索引系统
+│   │   ├── indexer.py           # 增量索引系统
 │   │   ├── search_engine.py     # 搜索引擎
+│   │   ├── lock_manager.py      # 并发锁管理 (v0.3.0+)
+│   │   ├── vector_client.py     # 向量 API 客户端 (v0.4.0+)
+│   │   ├── vector_store.py      # SQLite 向量存储 (v0.4.0+)
+│   │   ├── graph_store.py       # 知识图谱存储 (v0.5.0+)
 │   │   └── tools/               # MCP 工具
 │   └── README.md                # 项目详细文档
 ├── smoke_test.py                # 烟雾测试
@@ -150,10 +154,13 @@ claude mcp add adaptive-memory \
 | **跨应用记忆互通** | 多个 AI 应用共享同一份记忆 |
 | **Scope 作用域隔离** | 全局偏好 vs 项目专属配置，互不干扰 |
 | **三层记忆架构** | 知识图谱 + 每日笔记 + 隐性知识 |
-| **高效检索** | 基于 JSON 索引的 O(1) 查询，支持 ripgrep 全文搜索 |
+| **语义搜索 (v0.4.0+)** | 基于 Embedding API 的向量检索 + Rerank 精排 |
+| **FTS5 全文搜索 (v0.4.0+)** | SQLite 内置全文搜索，BM25 排名 |
+| **知识图谱 (v0.5.0+)** | 基于 NetworkX 的实体关系存储，支持多跳推理 |
+| **并发安全 (v0.3.0+)** | 基于 filelock 的跨进程文件锁 |
+| **增量索引 (v0.3.0+)** | 基于 mtime 的智能增量索引 |
 | **时间权威** | MCP 是唯一时间来源，防止 Agent 时间幻觉 |
 | **知识演化** | 支持事实版本管理和 supersede 机制 |
-| **自动初始化** | 首次运行自动创建目录结构 |
 
 ---
 
@@ -194,6 +201,31 @@ ADAPTIVE_AGENT_RIPGREP_PATH=C:\path\to\rg.exe
 
 ---
 
+## 可选配置：语义搜索 API (v0.4.0+)
+
+启用语义搜索需要配置 Embedding API，Rerank API 可选但推荐。
+
+<details>
+<summary><b>环境变量配置</b></summary>
+
+```bash
+# Embedding API (必需 - 用于语义搜索)
+ADAPTIVE_EMBEDDING_BASE_URL=https://api-inference.modelscope.cn/v1
+ADAPTIVE_EMBEDDING_API_KEY=your-api-key
+ADAPTIVE_EMBEDDING_MODEL=Qwen/Qwen3-Embedding-8B
+
+# Rerank API (可选 - 提升搜索精度)
+ADAPTIVE_RERANK_BASE_URL=https://api-inference.modelscope.cn/v1
+ADAPTIVE_RERANK_API_KEY=your-api-key
+ADAPTIVE_RERANK_MODEL=Qwen/Qwen3-Reranker-8B
+```
+
+支持任何 OpenAI 兼容的 Embedding API (如 ModelScope, SiliconFlow, DeepSeek) 和 Cohere 兼容的 Rerank API。
+
+</details>
+
+---
+
 ## MCP 工具
 
 | 工具 | 功能 |
@@ -206,6 +238,16 @@ ADAPTIVE_AGENT_RIPGREP_PATH=C:\path\to\rg.exe
 | `query_knowledge` | 查询知识库中的已保存知识 |
 | `get_period_context` | 聚合周/月日志用于总结 |
 | `archive_period` | 保存周期总结 |
+| **语义搜索 (v0.4.0+)** | |
+| `semantic_search` | 基于向量的语义相似度搜索 |
+| `fulltext_search` | SQLite FTS5 全文搜索 (BM25) |
+| `index_document` | 将文档索引到向量数据库 |
+| `get_vector_stats` | 查看向量系统状态 |
+| **知识图谱 (v0.5.0+)** | |
+| `extract_knowledge` | 从文本自动抽取实体关系 |
+| `add_knowledge_relation` | 手动添加实体关系 |
+| `query_knowledge_graph` | 查询实体/关系/统计 |
+| `multi_hop_query` | 多跳关系推理查询 |
 
 ---
 
