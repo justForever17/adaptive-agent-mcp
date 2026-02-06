@@ -4,18 +4,24 @@ import yaml
 import shutil
 from .config import config
 
+# v2.0 格式模板，支持 Scope 分区
 MEMORY_TEMPLATE = """---
-type: implicit_knowledge
-version: "1.0"
+type: user_preferences
+version: "2.0"
 last_updated: "{date}"
-core_traits: ["constructive", "concise", "pro-active"]
 ---
-# User Profile
-- 偏好: 
-- 角色: 
 
-# Style Guidelines
-- 语气: 专业、冷静
+[global]
+# 全局偏好 - 适用于所有场景
+language: zh-CN
+
+[app:chat]
+# 聊天场景偏好 - Agent 判断为闲聊时使用
+communication_style: 友好、热情
+
+[app:coding]
+# 编程场景偏好 - Agent 判断为技术任务时使用
+communication_style: 专业、严谨
 """
 
 class StorageValidation:
