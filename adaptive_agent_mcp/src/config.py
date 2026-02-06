@@ -6,9 +6,21 @@ from typing import Optional
 class Settings(BaseSettings):
     storage_path: Path = Path.home() / ".adaptive-agent" / "memory"
     ripgrep_path: Optional[str] = None  # Auto-detect via shutil.which("rg")
+    
+    # Embedding API 配置 (OpenAI 兼容格式)
+    embedding_provider: str = "openai_compatible"
+    embedding_base_url: Optional[str] = None  # e.g., https://api-inference.modelscope.cn/v1
+    embedding_api_key: Optional[str] = None
+    embedding_model: str = "Qwen/Qwen3-Embedding-8B"
+    
+    # Rerank API 配置 (Cohere 兼容格式)
+    rerank_provider: str = "cohere_compatible"
+    rerank_base_url: Optional[str] = None
+    rerank_api_key: Optional[str] = None
+    rerank_model: str = "Qwen/Qwen3-Reranker-8B"
 
     class Config:
-        env_prefix = "ADAPTIVE_AGENT_"
+        env_prefix = "ADAPTIVE_"
 
 def get_config() -> Settings:
     parser = argparse.ArgumentParser(description="Adaptive Agent MCP Server")
