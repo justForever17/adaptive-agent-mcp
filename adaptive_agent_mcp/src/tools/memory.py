@@ -7,6 +7,7 @@ from ..config import config
 from ..storage import StorageValidation
 from ..indexer import indexer
 from ..memory_parser import MemoryParser
+from ..lock_manager import LockManager
 
 @mcp.tool()
 def update_preference(
@@ -178,46 +179,54 @@ def append_daily_log(
             target_dir.mkdir(parents=True, exist_ok=True)
             target_file = target_dir / "items.json"
             
-            # Load existing items
-            items = []
-            if target_file.exists():
-                try:
-                    items = json.loads(target_file.read_text(encoding="utf-8"))
-                except Exception:
-                    items = []
+            # 使用锁保护知识库读写
+            with LockManager.knowledge_lock():
+                # Load existing items
+                items = []
+                if target_file.exists():
+                    try:
+                        items = json.loads(target_file.read_text(encoding="utf-8"))
+                    except Exception:
+                        items = []
+                
+                # Knowledge Evolution Logic
+                supersedes_id = atomic_fact.get("supersedes_id") or atomic_fact.get("supersededBy")
+                
+                # Generate ID if missing
+                if "id" not in atomic_fact:
+                    atomic_fact["id"] = f"fact-{uuid.uuid4().hex[:8]}"
+                
+                atomic_fact["timestamp"] = now.isoformat()
+                atomic_fact["status"] = "active"
+                atomic_fact["scope"] = scope or "global"  # Default to global
+                
+                if supersedes_id:
+                    # Mark old item as superseded
+                    updated_count = 0
+                    for item in items:
+                        if item.get("id") == supersedes_id and item.get("status") == "active":
+                            item["status"] = "superseded"
+                            item["supersededBy"] = atomic_fact["id"]
+                            updated_count += 1
+                    if updated_count == 0:
+                        return f"Warning: Could not find active fact with ID {supersedes_id} to supersede."
+                
+                items.append(atomic_fact)
+                
+                target_file.write_text(json.dumps(items, indent=2, ensure_ascii=False), encoding="utf-8")
             
-            # Knowledge Evolution Logic
-            supersedes_id = atomic_fact.get("supersedes_id") or atomic_fact.get("supersededBy")
-            
-            # Generate ID if missing
-            if "id" not in atomic_fact:
-                atomic_fact["id"] = f"fact-{uuid.uuid4().hex[:8]}"
-            
-            atomic_fact["timestamp"] = now.isoformat()
-            atomic_fact["status"] = "active"
-            atomic_fact["scope"] = scope or "global"  # Default to global
-            
-            if supersedes_id:
-                # Mark old item as superseded
-                updated_count = 0
-                for item in items:
-                    if item.get("id") == supersedes_id and item.get("status") == "active":
-                        item["status"] = "superseded"
-                        item["supersededBy"] = atomic_fact["id"]
-                        updated_count += 1
-                if updated_count == 0:
-                    return f"Warning: Could not find active fact with ID {supersedes_id} to supersede."
-            
-            items.append(atomic_fact)
-            
-            target_file.write_text(json.dumps(items, indent=2, ensure_ascii=False), encoding="utf-8")
             return f"Added Atomic Fact {atomic_fact['id']} (scope: {atomic_fact['scope']}) to {target_file}"
 
     return "No content or fact provided."
 
 
 @mcp.tool()
-def query_knowledge(scope: Optional[str] = None, category: Optional[str] = None) -> str:
+def query_knowledge(
+    scope: Optional[str] = None, 
+    category: Optional[str] = None,
+    limit: int = 20,
+    offset: int = 0
+) -> str:
     """
     **知识库查询** - 从知识图谱中检索已保存的知识条目。
     
@@ -237,6 +246,12 @@ def query_knowledge(scope: Optional[str] = None, category: Optional[str] = None)
     - `'domain_knowledge'`: 技术规范、API 用法、最佳实践
     - `'user_preference'`: 用户偏好、习惯、风格
     - `None`: 返回所有分类
+    
+    ### limit (分页)
+    - 最大返回数量，默认 20
+    
+    ### offset (分页)
+    - 跳过前 N 条结果，默认 0
     
     ## 返回格式
     每条知识显示：作用域标签（如有）、知识内容、ID
@@ -270,14 +285,23 @@ def query_knowledge(scope: Optional[str] = None, category: Optional[str] = None)
     if category:
         active_items = [i for i in active_items if i.get("category") == category]
     
+    total_count = len(active_items)
+    
     if not active_items:
         return "No matching knowledge found."
     
+    # Apply pagination
+    paginated_items = active_items[offset:offset + limit]
+    
     # Format output
     output = []
-    for item in active_items:
+    for item in paginated_items:
         scope_tag = f"[{item.get('scope', 'global')}]" if item.get('scope') != 'global' else ""
         output.append(f"- {scope_tag} {item.get('fact')} (id: {item.get('id')})")
+    
+    # Add pagination info
+    showing_end = min(offset + limit, total_count)
+    output.append(f"\n--- 显示 {offset + 1}-{showing_end} / {total_count} 条 ---")
     
     return "\n".join(output)
 

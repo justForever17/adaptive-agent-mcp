@@ -97,7 +97,7 @@ def read_memory_content(file_paths: List[str]) -> str:
 
 
 @mcp.tool()
-def search_memory_content(query: str, regex: bool = False) -> str:
+def search_memory_content(query: str, regex: bool = False, limit: int = 20) -> str:
     """
     **全文搜索** - 在所有记忆文件中搜索关键词或模式。
     
@@ -110,6 +110,7 @@ def search_memory_content(query: str, regex: bool = False) -> str:
     ## 参数说明
     - `query`: 搜索关键词，如 "CORS" 或 "用户认证"
     - `regex`: 是否使用正则表达式，默认 False
+    - `limit`: 最大返回结果数，默认 20（防止 Context Window 爆炸）
     
     ## 搜索引擎
     使用 ripgrep (rg) 进行高速搜索，支持：
@@ -127,5 +128,5 @@ def search_memory_content(query: str, regex: bool = False) -> str:
     if not engine.is_available:
         return "Error: 'rg' (ripgrep) not configured or found. Please install ripgrep."
         
-    return engine.search(query, regex=regex)
+    return engine.search(query, regex=regex, limit=limit)
 

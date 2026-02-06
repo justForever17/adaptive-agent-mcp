@@ -28,6 +28,7 @@ from datetime import datetime
 from typing import Dict, Any, Optional, List
 import re
 from .config import config
+from .lock_manager import LockManager
 
 
 MEMORY_TEMPLATE_V2 = """---
@@ -219,7 +220,7 @@ class MemoryParser:
         return result
     
     def save(self) -> Path:
-        """保存到 MEMORY.md"""
+        """保存到 MEMORY.md (带锁保护)"""
         lines = []
         
         # 1. 写入 frontmatter
@@ -261,7 +262,11 @@ class MemoryParser:
             lines.append("")
         
         content = "\n".join(lines)
-        self.memory_path.write_text(content, encoding="utf-8")
+        
+        # 使用锁保护写入
+        with LockManager.memory_lock():
+            self.memory_path.write_text(content, encoding="utf-8")
+        
         return self.memory_path
     
     def format_for_display(self) -> str:

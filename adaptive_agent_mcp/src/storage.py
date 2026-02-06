@@ -3,6 +3,7 @@ from datetime import datetime
 import yaml
 import shutil
 from .config import config
+from .lock_manager import LockManager
 
 # v2.0 格式模板，支持 Scope 分区
 MEMORY_TEMPLATE = """---
@@ -37,13 +38,17 @@ class StorageValidation:
         (root / "memory").mkdir(exist_ok=True)
         (root / "knowledge").mkdir(exist_ok=True)
         (root / ".index").mkdir(exist_ok=True)
+        (root / ".locks").mkdir(exist_ok=True)  # 锁文件目录
         
-        # Create default MEMORY.md if missing
+        # Create default MEMORY.md if missing (with lock protection)
         memory_file = root / "MEMORY.md"
         if not memory_file.exists():
-            current_date = datetime.now().strftime("%Y-%m-%d")
-            content = MEMORY_TEMPLATE.format(date=current_date)
-            memory_file.write_text(content, encoding="utf-8")
+            with LockManager.memory_lock():
+                # Double-check after acquiring lock
+                if not memory_file.exists():
+                    current_date = datetime.now().strftime("%Y-%m-%d")
+                    content = MEMORY_TEMPLATE.format(date=current_date)
+                    memory_file.write_text(content, encoding="utf-8")
 
     @staticmethod
     def get_daily_log_path(date: datetime) -> Path:
@@ -61,25 +66,40 @@ class StorageValidation:
         return path / filename
 
     @staticmethod
-    def append_to_file(path: Path, content: str):
-        """Append content to a file with newline handling."""
+    def append_to_file(path: Path, content: str, use_lock: bool = True):
+        """
+        Append content to a file with newline handling.
+        
+        Args:
+            path: 目标文件路径
+            content: 要追加的内容
+            use_lock: 是否使用文件锁（默认 True）
+        """
         if not path.parent.exists():
              path.parent.mkdir(parents=True, exist_ok=True)
         
-        # Decode unicode escape sequences if present (e.g., \u4eca -> 今)
+        # Decode unicode escape sequences if present (e.g., \\u4eca -> 今)
         try:
             if '\\u' in content or '\\n' in content:
                 content = content.encode('utf-8').decode('unicode_escape')
         except Exception:
             pass  # Keep original content if decode fails
-             
-        with open(path, "a", encoding="utf-8") as f:
-            if path.exists() and path.stat().st_size > 0:
-                f.write("\n\n")
-            f.write(content)
+        
+        def _do_write():
+            with open(path, "a", encoding="utf-8") as f:
+                if path.exists() and path.stat().st_size > 0:
+                    f.write("\n\n")
+                f.write(content)
+        
+        if use_lock:
+            with LockManager.daily_log_lock():
+                _do_write()
+        else:
+            _do_write()
 
     @staticmethod
     def read_file(path: Path) -> str:
         if not path.exists():
             return ""
         return path.read_text(encoding="utf-8")
+
