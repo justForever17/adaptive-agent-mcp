@@ -38,6 +38,7 @@ ENV/
 docs/implementation_plan.md
 docs/AI记忆系统架构.md
 docs/PyPI发布指南.md
+docs/future_architecture.md
 
 # Test artifacts
 smoke_test.py

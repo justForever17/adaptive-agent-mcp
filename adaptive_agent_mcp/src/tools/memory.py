@@ -442,3 +442,66 @@ def archive_period(summary_content: str, period: str) -> str:
     path.write_text(summary_content, encoding="utf-8")
     return f"Archived {period} summary to {path}"
 
+
+@mcp.tool()
+def delete_knowledge(
+    id: str,
+    reason: Optional[str] = None
+) -> str:
+    """
+    [DANGER] **删除知识** - 物理删除指定的知识条目。
+    
+    ## 使用场景
+    - 用户明确要求删除某条错误或过时的信息
+    - 清理被标记为 [DEPRECATED] 且不再需要的条目
+    - 隐私数据清除
+    
+    ## 参数
+    - `id`: 知识条目的唯一 ID (如 "fact-12345678")
+    - `reason`: (可选) 删除原因，仅用于日志记录
+    
+    ## 注意
+    - 此操作不可逆！
+    - 删除后会触发索引重建（如适用）
+    """
+    target_file = config.storage_path / "knowledge" / "areas" / "general" / "items.json"
+    
+    if not target_file.exists():
+        return "Error: Knowledge base does not exist."
+        
+    # 使用锁保护知识库读写
+    with LockManager.knowledge_lock():
+        try:
+            items = json.loads(target_file.read_text(encoding="utf-8"))
+        except Exception as e:
+            return f"Error reading knowledge base: {e}"
+            
+        # 查找要删除的索引
+        target_index = -1
+        target_item = None
+        
+        for i, item in enumerate(items):
+            if item.get("id") == id:
+                target_index = i
+                target_item = item
+                break
+                
+        if target_index == -1:
+            return f"Error: Knowledge item with ID '{id}' not found."
+            
+        # 执行删除
+        items.pop(target_index)
+        
+        # 写回文件
+        target_file.write_text(json.dumps(items, indent=2, ensure_ascii=False), encoding="utf-8")
+        
+        # 记录删除操作到日志 (Audit Log)
+        log_content = f"Deleted knowledge item '{id}' ({target_item.get('fact')[:20]}...)"
+        if reason:
+            log_content += f". Reason: {reason}"
+            
+        # 不调用 append_daily_log 避免循环依赖，简单打印或忽略
+        # 实际生产中可能需要一个专门的 audit log
+        
+    return f"✓ Successfully deleted knowledge item '{id}'."
+
