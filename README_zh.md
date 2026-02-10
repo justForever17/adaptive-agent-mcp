@@ -131,26 +131,23 @@ AI: 已完成代码重构，以下是变更说明...
 
 ## 快速开始
 
-### 快速安装
+### 前提条件 (Prerequisites)
 
-<details open>
-<summary><b>VS Code / Cherry studio / Antigravity / Claude Code / 等任何支持 MCP 的 AI 应用</b></summary>
+1. **Python 3.10+**
+2. **Ripgrep (`rg`)**: **必需** (用于全文搜索)。
+   - **Windows**: `choco install ripgrep` 或 `winget install BurntSushi.ripgrep.MSVC`
+   - **macOS**: `brew install ripgrep`
+   - **Linux**: `apt install ripgrep`
+3. **SQLite**: Python 会自动处理，**无需** 手动安装。
 
-配置 `mcp.json`:
+### 配置 (Configuration v0.6.0)
 
-**基础配置** (不含 API):
-```json
-{
-  "mcpServers": {
-    "adaptive-agent-mcp": {
-      "command": "uvx",
-      "args": ["adaptive-agent-mcp"]
-    }
-  }
-}
-```
+配置通过 **环境变量** 管理。
 
-**完整配置** (含语义搜索 API):
+#### 1. mcp.json 结构
+
+配置 `mcp.json` (通常位于 `%APPDATA%\Claude\mcp.json` 或 `~/Library/Application Support/Claude/mcp.json`):
+
 ```json
 {
   "mcpServers": {
@@ -158,33 +155,51 @@ AI: 已完成代码重构，以下是变更说明...
       "command": "uvx",
       "args": ["adaptive-agent-mcp"],
       "env": {
-        "ADAPTIVE_EMBEDDING_BASE_URL": "https://api-inference.modelscope.cn/v1",
-        "ADAPTIVE_EMBEDDING_API_KEY": "your-api-key",
-        "ADAPTIVE_EMBEDDING_MODEL": "Qwen/Qwen3-Embedding-8B",
-        "ADAPTIVE_RERANK_BASE_URL": "https://api-inference.modelscope.cn/v1",
-        "ADAPTIVE_RERANK_API_KEY": "your-api-key",
-        "ADAPTIVE_RERANK_MODEL": "Qwen/Qwen3-Reranker-8B"
+        "ADAPTIVE_STORAGE_PATH": "C:/Users/YourName/.adaptive-agent/memory",
+        "ADAPTIVE_EMBEDDING_PROVIDER": "openai_compatible",
+        "ADAPTIVE_EMBEDDING_BASE_URL": "https://api.siliconflow.cn/v1",
+        "ADAPTIVE_EMBEDDING_API_KEY": "sk-your-siliconflow-key",
+        "ADAPTIVE_EMBEDDING_MODEL": "Qwen/Qwen2.5-Coder-7B-Instruct",
+        "ADAPTIVE_RERANK_PROVIDER": "cohere_compatible",
+        "ADAPTIVE_RERANK_BASE_URL": "https://api.siliconflow.cn/v1",
+        "ADAPTIVE_RERANK_API_KEY": "sk-your-siliconflow-key",
+        "ADAPTIVE_RERANK_MODEL": "BAAI/bge-reranker-v2-m3"
       }
     }
   }
 }
 ```
 
-</details>
+#### 2. 环境变量一览
 
-> 不指定 `--storage-path` 时，使用默认路径 `~/.adaptive-agent/memory`，所有应用共享同一份记忆。
+所有变量前缀为 `ADAPTIVE_`。
+
+| 变量 | 说明 | 默认值 |
+|---|---|---|
+| `ADAPTIVE_STORAGE_PATH` | 记忆存储路径 | `~/.adaptive-agent/memory` |
+| `ADAPTIVE_RIPGREP_PATH` | `rg` 可执行文件路径 | 自动检测 |
+| `ADAPTIVE_EMBEDDING_PROVIDER` | Embedding 提供商 (`openai_compatible`) | `openai_compatible` |
+| `ADAPTIVE_EMBEDDING_BASE_URL` | API 端点 | `None` |
+| `ADAPTIVE_EMBEDDING_API_KEY` | API Key | `None` |
+| `ADAPTIVE_EMBEDDING_MODEL` | Embedding 模型名 | `Qwen/Qwen3-Embedding-8B` |
+| `ADAPTIVE_RERANK_PROVIDER` | Rerank 提供商 (`cohere_compatible`) | `cohere_compatible` |
+| `ADAPTIVE_RERANK_BASE_URL` | API 端点 | `None` |
+| `ADAPTIVE_RERANK_API_KEY` | API Key | `None` |
+| `ADAPTIVE_RERANK_MODEL` | Rerank 模型名 | `Qwen/Qwen3-Reranker-8B` |
+
+> 默认存储路径: `~/.adaptive-agent/memory`。所有应用共享同一份记忆。
 
 ### 增强 Agent 记忆行为 (可选)
 
-如果 AI 不主动读写记忆，可将以下内容添加到你的 system prompt 或 user rules：
+如果你的 AI 不太主动读写记忆，可以将以下内容加入 System Prompt 或 User Rules：
 
-```
-## 记忆系统指令
+```markdown
+## Memory System Instructions
 
-- 每次对话开始时，调用 `initialize_session` 加载用户偏好。
-- 当用户说"记住"、"保存"或表达偏好时，调用 `update_preference` 或 `append_daily_log`。
-- 任务完成后，使用 `append_daily_log` 简要记录进展。
-- 用户问"之前..."、"上次..."时，使用 `query_memory_headers` 或 `search_memory_content` 查询。
+- At the start of each conversation, call `initialize_session` to load user preferences.
+- When user says "remember", "save", or expresses preferences, call `update_preference` or `append_daily_log`.
+- After completing tasks, briefly record progress using `append_daily_log`.
+- When user asks about past conversations, use `query_memory_headers` or `search_memory_content`.
 ```
 
 ---
@@ -321,6 +336,7 @@ ADAPTIVE_RERANK_MODEL=Qwen/Qwen3-Reranker-8B
 ---
 
 ## 文档
+
 
 - [快速开始](./docs/快速开始.md)
 - [使用指南](./docs/使用指南.md)

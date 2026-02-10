@@ -68,15 +68,53 @@ async def append_daily_log(
     """
     [SAVE] **写入记忆** - 当用户要求保存信息或任务完成时调用。
     
-    ## 触发时机
-    - "记住", "保存", "记录"
+    ## 触发时机 (WHEN TO CALL)
+    当用户说出以下关键词时，**必须**调用此工具：
+    - "记住", "保存", "记录", "别忘了", "以后都这样"
+    - "我喜欢...", "我不喜欢...", "我习惯..."
+    - "这个项目用...", "这个仓库的规范是..."
     - 任务完成时主动记录进度
     - 解决问题后记录解决方案
     
     ## 参数使用指南
-    1. **每日笔记** (短期): `content="完成了..."`
-    2. **领域知识** (长期): `atomic_fact={"fact": "...", "category": "domain_knowledge"}`
-    3. **用户偏好**: 优先用 `update_preference`
+    
+    ### 1. 每日笔记 (短期/临时)
+    用于任务进度、临时想法、错误记录：
+    ```
+    append_daily_log(content="完成了用户认证模块的重构")
+    ```
+    
+    ### 2. 领域知识 (长期)
+    用于技术规范、API 用法、最佳实践：
+    ```
+    append_daily_log(atomic_fact={
+        "fact": "Next.js 15 使用 App Router 作为默认路由",
+        "category": "domain_knowledge"
+    })
+    ```
+    
+    ### 3. 用户偏好 (永久) - 推荐使用 update_preference
+    对于用户偏好，**优先使用 `update_preference` 工具**，它会智能覆盖旧值。
+    如果仍要使用此工具：
+    ```
+    append_daily_log(atomic_fact={
+        "fact": "用户喜欢使用 Tailwind CSS",
+        "category": "user_preference"
+    })
+    ```
+    
+    ### 4. Scope 参数 (语义理解驱动)
+    
+    根据**对话意图**推断 scope：
+    
+    | 用户在做什么 | 应使用的 scope |
+    |-------------|---------------|
+    | 与你闲聊、表达情感偏好 | app:chat |
+    | 讨论代码、技术规范 | app:coding |
+    | 在具体项目中设置规范 | project:{项目名} |
+    | 设置通用偏好 | global |
+    
+    **注意**: 不要询问日期，系统自动记录时间戳。
     """
     now = datetime.now()
     
@@ -193,16 +231,37 @@ async def query_knowledge(
     offset: int = 0
 ) -> str:
     """
-    **知识库查询** - 混合检索 (Hybrid Search)
+    **知识库查询** - 从知识图谱中检索已保存的知识条目。
     
-    ## 参数
-    - `query`: 搜索关键词/问题 (如 "我的偏好", "API key")。若为空，则列出所有条目。
-    - `scope`: 作用域过滤
-    - `category`: 分类过滤
+    ## 使用场景
+    - 用户问 "我的偏好是什么？"（查询 user_preference）
+    - 用户问 "之前记录的技术规范有哪些？"（查询 domain_knowledge）
+    - 在特定项目中工作时，查询该项目的专属配置
     
-    ## 模式
-    1. **搜索模式** (`query` provided): 使用 Vector + FTS 混合检索。
-    2. **浏览模式** (`query` is None): 仅根据 scope/category 过滤列出。
+    ## 参数说明
+    
+    ### scope (作用域过滤)
+    - `None`: 返回全局知识 + 当前项目的知识
+    - `'global'`: 仅返回全局知识
+    - `'project:my-app'`: 仅返回该项目的专属知识 + 全局知识
+    
+    ### category (分类过滤)
+    - `'domain_knowledge'`: 技术规范、API 用法、最佳实践
+    - `'user_preference'`: 用户偏好、习惯、风格
+    - `None`: 返回所有分类
+    
+    ### limit (分页)
+    - 最大返回数量，默认 20
+    
+    ### offset (分页)
+    - 跳过前 N 条结果，默认 0
+    
+    ## 返回格式
+    每条知识显示：作用域标签（如有）、知识内容、ID
+    
+    ## 与 append_daily_log 的关系
+    - `append_daily_log` 写入知识
+    - `query_knowledge` 读取知识
     """
     from ..vector_store import get_vector_store
     from ..services.embedding import EmbeddingService
@@ -382,7 +441,36 @@ async def query_knowledge(
 
 @mcp.tool()
 async def get_period_context(period: str, date: Optional[str] = None) -> str:
-    """Async wrapper for period context"""
+    """
+    **周期索引** - 获取指定时间段的日志摘要和文件索引，用于生成周报/月报。
+    
+    ## 使用场景
+    当用户说：
+    - "帮我写一份周报"
+    - "总结一下这个月做了什么"
+    - "回顾上周的工作"
+    
+    ## 工作流程
+    1. 调用 `get_period_context(period='week')` 获取索引
+    2. 阅读摘要，了解每天的概况
+    3. 如需详细内容，调用 `read_memory_content` 按需加载
+    4. 撰写总结报告
+    5. 调用 `archive_period` 保存总结
+    
+    ## 参数说明
+    - `period`: 时间周期，`'week'` 或 `'month'`
+    - `date`: 可选，指定日期 (格式 YYYY-MM-DD)，默认为今天
+    
+    ## 返回格式
+    返回简短摘要 + 文件路径索引，不返回完整内容：
+    ```
+    📅 2026-02-03 | 3 entries | path/to/file.md
+       摘要: 完成了用户认证模块...
+    ```
+    
+    ## 按需加载
+    对于需要详细了解的日期，使用返回的文件路径调用 `read_memory_content`
+    """
     from datetime import timedelta
     import re
     
@@ -447,6 +535,62 @@ async def get_period_context(period: str, date: Optional[str] = None) -> str:
 
 
 
+@mcp.tool()
+async def archive_period(
+    summary_content: str,
+    period: str
+) -> str:
+    """
+    **保存周期总结** - 将撰写好的周报/月报保存到永久文件。
+    
+    ## 使用场景
+    在使用 `get_period_context` 获取数据并撰写总结后，调用此工具保存。
+    
+    ## 工作流程
+    1. `get_period_context(period='week')` - 获取原始数据
+    2. 阅读数据，撰写精炼总结
+    3. `archive_period(summary_content='...', period='week')` - 保存
+    
+    ## 参数说明
+    - `summary_content`: 你撰写的总结内容 (Markdown 格式)
+    - `period`: 时间周期，`'week'` 或 `'month'`
+    
+    ## 保存位置
+    文件保存到: `memory/{period}_summary_{date}.md`
+    
+    ## 总结建议格式
+    ```markdown
+    # 周报 2026-02-06
+    
+    ## 完成事项
+    - 事项 1
+    - 事项 2
+    
+    ## 遇到的问题
+    - 问题及解决方案
+    
+    ## 下周计划
+    - 待办事项
+    ```
+    """
+    now = datetime.now()
+    date_str = now.strftime("%Y-%m-%d")
+    filename = f"{period}_summary_{date_str}.md"
+    
+    # Save to memory root
+    target_path = config.storage_path / "memory" / filename
+    
+    header = f"---\ntype: period_summary\nperiod: {period}\ndate: {date_str}\n---\n\n"
+    full_content = header + summary_content
+    
+    await StorageValidation.async_append_to_file(target_path, full_content)
+    
+    # Trigger re-index
+    asyncio.create_task(indexer.build_index())
+    
+    return f"✓ Saved {period} summary to {target_path}"
+
+
 async def _log_audit(action: str, target_id: str, details: Dict[str, Any] = None):
     """
     Log an audit event to memory/audit.log
@@ -471,7 +615,20 @@ async def delete_knowledge(
     reason: Optional[str] = None
 ) -> str:
     """
-    [DANGER] **删除知识** (Soft Delete + Audit Log)
+    [DANGER] **删除知识** - 物理删除指定的知识条目。
+    
+    ## 使用场景
+    - 用户明确要求删除某条错误或过时的信息
+    - 清理被标记为 [DEPRECATED] 且不再需要的条目
+    - 隐私数据清除
+    
+    ## 参数
+    - `id`: 知识条目的唯一 ID (如 "fact-12345678")
+    - `reason`: (可选) 删除原因，仅用于日志记录
+    
+    ## 注意
+    - 此操作不可逆！
+    - 删除后会触发索引重建（如适用）
     """
     # Search ALL partitions
     all_files = KnowledgeRouter.get_all_partition_files()

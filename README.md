@@ -78,25 +78,20 @@ In Antigravity: "What are my coding preferences?"
 
 ---
 
-## Quick Start
+## Getting Started
 
-### Installation
+### Prerequisites
 
-Configure `mcp.json` in any MCP-compatible AI application:
+1. **Python 3.10+**
+2. **Ripgrep (`rg`)**: **REQUIRED** for full-text search. (**Windows**: `choco install ripgrep`, **macOS**: `brew install ripgrep`)
+3. **SQLite**: Handled automatically by Python.
 
-**Basic Configuration:**
-```json
-{
-  "mcpServers": {
-    "adaptive-agent-mcp": {
-      "command": "uvx",
-      "args": ["adaptive-agent-mcp"]
-    }
-  }
-}
-```
+### Configuration (v0.6.0)
 
-**Full Configuration (with Semantic Search API):**
+Configuration is managed via **Environment Variables**.
+
+#### 1. mcp.json Structure
+
 ```json
 {
   "mcpServers": {
@@ -104,17 +99,37 @@ Configure `mcp.json` in any MCP-compatible AI application:
       "command": "uvx",
       "args": ["adaptive-agent-mcp"],
       "env": {
-        "ADAPTIVE_EMBEDDING_BASE_URL": "https://api.openai.com/v1",
-        "ADAPTIVE_EMBEDDING_API_KEY": "your-api-key",
-        "ADAPTIVE_EMBEDDING_MODEL": "text-embedding-3-small",
-        "ADAPTIVE_RERANK_BASE_URL": "https://api.cohere.ai/v1",
-        "ADAPTIVE_RERANK_API_KEY": "your-api-key",
-        "ADAPTIVE_RERANK_MODEL": "rerank-english-v3.0"
+        "ADAPTIVE_STORAGE_PATH": "C:/Users/YourName/.adaptive-agent/memory",
+        "ADAPTIVE_EMBEDDING_PROVIDER": "openai_compatible",
+        "ADAPTIVE_EMBEDDING_BASE_URL": "https://api.siliconflow.cn/v1",
+        "ADAPTIVE_EMBEDDING_API_KEY": "sk-your-siliconflow-key",
+        "ADAPTIVE_EMBEDDING_MODEL": "Qwen/Qwen2.5-Coder-7B-Instruct",
+        "ADAPTIVE_RERANK_PROVIDER": "cohere_compatible",
+        "ADAPTIVE_RERANK_BASE_URL": "https://api.siliconflow.cn/v1",
+        "ADAPTIVE_RERANK_API_KEY": "sk-your-siliconflow-key",
+        "ADAPTIVE_RERANK_MODEL": "BAAI/bge-reranker-v2-m3"
       }
     }
   }
 }
 ```
+
+#### 2. Environment Variables
+
+All variables are prefixed with `ADAPTIVE_`.
+
+| Variable | Description | Default |
+|---|---|---|
+| `ADAPTIVE_STORAGE_PATH` | Storage location | `~/.adaptive-agent/memory` |
+| `ADAPTIVE_RIPGREP_PATH` | Path to `rg` executable | Auto-detect |
+| `ADAPTIVE_EMBEDDING_PROVIDER` | Embedding provider (`openai_compatible`) | `openai_compatible` |
+| `ADAPTIVE_EMBEDDING_BASE_URL` | API Endpoint | `None` |
+| `ADAPTIVE_EMBEDDING_API_KEY` | API Key | `None` |
+| `ADAPTIVE_EMBEDDING_MODEL` | Embedding Model | `Qwen/Qwen3-Embedding-8B` |
+| `ADAPTIVE_RERANK_PROVIDER` | Rerank provider (`cohere_compatible`) | `cohere_compatible` |
+| `ADAPTIVE_RERANK_BASE_URL` | API Endpoint | `None` |
+| `ADAPTIVE_RERANK_API_KEY` | API Key | `None` |
+| `ADAPTIVE_RERANK_MODEL` | Reranker Model | `Qwen/Qwen3-Reranker-8B` |
 
 > Default storage path: `~/.adaptive-agent/memory`. All apps share the same memory.
 
@@ -214,6 +229,7 @@ If your AI doesn't actively read/write memory, add this to your system prompt or
 ---
 
 ## Documentation
+
 
 - [Architecture Design](docs/架构设计.md) (Chinese)
 - [Local Model Setup](docs/setup_local_model.md)
