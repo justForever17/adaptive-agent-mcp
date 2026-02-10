@@ -155,20 +155,23 @@ AI: 已完成代码重构，以下是变更说明...
       "command": "uvx",
       "args": ["adaptive-agent-mcp"],
       "env": {
-        "ADAPTIVE_STORAGE_PATH": "C:/Users/YourName/.adaptive-agent/memory",
-        "ADAPTIVE_EMBEDDING_PROVIDER": "openai_compatible",
-        "ADAPTIVE_EMBEDDING_BASE_URL": "https://api.siliconflow.cn/v1",
-        "ADAPTIVE_EMBEDDING_API_KEY": "sk-your-siliconflow-key",
+        "ADAPTIVE_EMBEDDING_BASE_URL": "https://api.xxx.cn/v1",
+        "ADAPTIVE_EMBEDDING_API_KEY": "sk-your-xxx-key",
         "ADAPTIVE_EMBEDDING_MODEL": "Qwen/Qwen2.5-Coder-7B-Instruct",
-        "ADAPTIVE_RERANK_PROVIDER": "cohere_compatible",
-        "ADAPTIVE_RERANK_BASE_URL": "https://api.siliconflow.cn/v1",
-        "ADAPTIVE_RERANK_API_KEY": "sk-your-siliconflow-key",
+        "ADAPTIVE_RERANK_BASE_URL": "https://api.xxx.cn/v1",
+        "ADAPTIVE_RERANK_API_KEY": "sk-your-xxx-key",
         "ADAPTIVE_RERANK_MODEL": "BAAI/bge-reranker-v2-m3"
       }
     }
   }
 }
 ```
+
+> **本地模型 (Local Models)**:
+> - **Ollama**: 请将 `ADAPTIVE_EMBEDDING_PROVIDER` 设为 `ollama`。
+> - **LM Studio/vLLM**: 请将 `ADAPTIVE_EMBEDDING_PROVIDER` 设为 `openai_compatible`（默认值）。
+> - **Base URL**: 设置为本地地址 (如 Ollama `http://localhost:11434/v1`，LM Studio `http://localhost:1234/v1`)。
+> - **API Key**: 可设为任意字符串。
 
 #### 2. 环境变量一览
 
@@ -237,6 +240,7 @@ AI: 已完成代码重构，以下是变更说明...
 | **并发安全** | 跨进程文件锁 + 异步锁 | v0.3.0 |
 | **增量索引** | 基于 mtime 的智能增量索引 | v0.3.0 |
 | **混合搜索 (Hybrid)** | 向量 + FTS5 全文搜索 + RRF 融合 | v0.6.0 |
+| **重排序服务 (Rerank)** | 集成 Cohere/BGE 兼容 API 的精细重排序 | v0.6.1 |
 | **区域分区 (Areas)** | 基于 Scope 的知识自动路由与存储 | v0.6.0 |
 | **知识图谱** | NetworkX 实体关系存储 | v0.5.0 |
 | **全异步架构** | 核心 I/O 全链路异步化 | v0.6.0 |
@@ -342,7 +346,6 @@ ADAPTIVE_RERANK_MODEL=Qwen/Qwen3-Reranker-8B
 - [使用指南](./docs/使用指南.md)
 - [架构设计](./docs/架构设计.md)
 - [使用场景示例](./docs/使用场景示例.md)
-- [项目详细文档](./adaptive_agent_mcp/README.md)
 
 ---
 

@@ -114,6 +114,21 @@ async def append_daily_log(
     | 在具体项目中设置规范 | project:{项目名} |
     | 设置通用偏好 | global |
     
+    ### 5. 原子化记录原则 (CRITICAL: Atomic Logging)
+    
+    对于长内容 (>800字)，**必须**使用 Markdown 二级或三级标题 (`##`, `###`) 将内容拆分为逻辑独立的段落。
+    
+    - ❌ **禁止**: 写入一大坨无结构的纯文本流水账。
+    - ✅ **要求**:
+      ```markdown
+      ## 用户认证模块重构
+      完成了...
+      
+      ## API 接口变更
+      修改了...
+      ```
+    - **原理**: 系统会根据标题自动进行语义切分(Semantic Chunking)，确保检索精度。
+    
     **注意**: 不要询问日期，系统自动记录时间戳。
     """
     now = datetime.now()
@@ -342,6 +357,33 @@ async def query_knowledge(
                     })
                     
                 results = final_results
+                
+                # --- 4. Reranking (Phase 12) ---
+                try:
+                    from ..services.rerank import RerankService
+                    reranker = RerankService.get_instance()
+                    
+                    if reranker and results:
+                        # Extract content
+                        docs_content = [item['content'] for item in results]
+                        # Call API
+                        reranked = await reranker.rerank(query, docs_content, top_n=len(results))
+                        
+                        # Re-order
+                        new_results = []
+                        for rr in reranked:
+                            if rr.index < len(results):
+                                item = results[rr.index]
+                                item['score'] = rr.relevance_score
+                                item['reranked'] = True
+                                new_results.append(item)
+                        
+                        if new_results:
+                            results = new_results
+                except Exception as e:
+                    # Fallback to RRF, just log warning
+                    import logging
+                    logging.getLogger("adaptive-agent-mcp").warning(f"Reranking failed: {e}")
                 
              except Exception as e:
                 # Log error and fall back?

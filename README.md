@@ -99,20 +99,23 @@ Configuration is managed via **Environment Variables**.
       "command": "uvx",
       "args": ["adaptive-agent-mcp"],
       "env": {
-        "ADAPTIVE_STORAGE_PATH": "C:/Users/YourName/.adaptive-agent/memory",
-        "ADAPTIVE_EMBEDDING_PROVIDER": "openai_compatible",
-        "ADAPTIVE_EMBEDDING_BASE_URL": "https://api.siliconflow.cn/v1",
-        "ADAPTIVE_EMBEDDING_API_KEY": "sk-your-siliconflow-key",
+        "ADAPTIVE_EMBEDDING_BASE_URL": "https://api.xxx.cn/v1",
+        "ADAPTIVE_EMBEDDING_API_KEY": "sk-your-xxx-key",
         "ADAPTIVE_EMBEDDING_MODEL": "Qwen/Qwen2.5-Coder-7B-Instruct",
-        "ADAPTIVE_RERANK_PROVIDER": "cohere_compatible",
-        "ADAPTIVE_RERANK_BASE_URL": "https://api.siliconflow.cn/v1",
-        "ADAPTIVE_RERANK_API_KEY": "sk-your-siliconflow-key",
+        "ADAPTIVE_RERANK_BASE_URL": "https://api.xxx.cn/v1",
+        "ADAPTIVE_RERANK_API_KEY": "sk-your-xxx-key",
         "ADAPTIVE_RERANK_MODEL": "BAAI/bge-reranker-v2-m3"
       }
     }
   }
 }
 ```
+
+> **Local Models**:
+> - **Ollama**: Set `ADAPTIVE_EMBEDDING_PROVIDER` to `ollama`.
+> - **LM Studio/vLLM**: Set `ADAPTIVE_EMBEDDING_PROVIDER` to `openai_compatible`.
+> - **Base URL**: Set to your local endpoint (e.g., `http://localhost:11434/v1` or `http://localhost:1234/v1`).
+> - **API Key**: Any string.
 
 #### 2. Environment Variables
 
@@ -157,6 +160,7 @@ If your AI doesn't actively read/write memory, add this to your system prompt or
 | **Concurrent Safety** | Cross-process file locking + async locks | v0.3.0 |
 | **Incremental Indexing** | mtime-based smart updates | v0.3.0 |
 | **Hybrid Search** | Vector + FTS5 with RRF fusion | v0.6.0 |
+| **Rerank Service** | Cohere-compatible re-ranking for higher precision | v0.6.1 |
 | **Area Partitioning** | Scope-based knowledge routing | v0.6.0 |
 | **Knowledge Graph** | NetworkX-based entity relations | v0.5.0 |
 | **Async Foundation** | Non-blocking I/O throughout | v0.6.0 |
@@ -225,15 +229,6 @@ If your AI doesn't actively read/write memory, add this to your system prompt or
 - **Isolated storage**: Data stored in `~/.adaptive-agent/memory`, independent of uvx installation
 - **Concurrent safety**: filelock prevents data corruption from multiple clients
 - **Human-readable**: All data in Markdown/JSON format, easy to backup and version control
-
----
-
-## Documentation
-
-
-- [Architecture Design](docs/架构设计.md) (Chinese)
-- [Local Model Setup](docs/setup_local_model.md)
-- [Changelog](CHANGELOG.md)
 
 ---
 
