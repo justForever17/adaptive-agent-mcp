@@ -23,10 +23,14 @@ code_style: TypeScript
 css_framework: vanilla CSS
 """
 
+
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, Any, Optional, List
 import re
+import copy
+import aiofiles
+import yaml
 from .config import config
 from .lock_manager import LockManager
 
@@ -52,8 +56,9 @@ communication_style: 专业、严谨
 
 
 class MemoryParser:
-    """智能 MEMORY.md 解析器，支持 scope 分区读写"""
+    """智能 MEMORY.md 解析器，支持 scope 分区读写 (Async)"""
     
+    _cache: Dict[str, Dict[str, Any]] = {} # Added cache attribute
     SCOPE_PATTERN = re.compile(r'^\[([^\]]+)\]$', re.MULTILINE)
     KV_PATTERN = re.compile(r'^([a-zA-Z_][a-zA-Z0-9_]*)\s*:\s*(.+)$', re.MULTILINE)
     
@@ -63,22 +68,59 @@ class MemoryParser:
         self._frontmatter: Dict[str, Any] = {}
         self._raw_content: str = ""
     
-    def load(self) -> "MemoryParser":
-        """加载并解析 MEMORY.md"""
+    async def load(self) -> "MemoryParser":
+        """加载并解析 MEMORY.md (Async + Caching)"""
         if not self.memory_path.exists():
-            self._init_default()
+            await self._init_default()
             return self
+            
+        path_str = str(self.memory_path)
+        try:
+            mtime = self.memory_path.stat().st_mtime
+            
+            # Check Cache
+            cached = self._cache.get(path_str)
+            if cached and cached.get("mtime") == mtime:
+                # Cache Hit — deepcopy to prevent shared mutable state
+                self._raw_content = cached["content"]
+                self._frontmatter = copy.deepcopy(cached["frontmatter"])
+                self._data = copy.deepcopy(cached["data"])
+                return self
+        except Exception:
+            pass # Fallback to read
         
-        self._raw_content = self.memory_path.read_text(encoding="utf-8")
+        # Cache Miss
+        async with LockManager.async_memory_lock():
+            async with aiofiles.open(self.memory_path, mode='r', encoding='utf-8') as f:
+                self._raw_content = await f.read()
+                
         self._parse()
+        
+        # Update Cache — deepcopy to isolate
+        try:
+            new_mtime = self.memory_path.stat().st_mtime
+        except Exception:
+            new_mtime = 0
+        self._cache[path_str] = {
+            "mtime": new_mtime,
+            "content": self._raw_content,
+            "frontmatter": copy.deepcopy(self._frontmatter),
+            "data": copy.deepcopy(self._data),
+        }
+        
         return self
+
     
-    def _init_default(self):
+    async def _init_default(self):
         """创建默认的 MEMORY.md"""
         current_date = datetime.now().strftime("%Y-%m-%d")
         content = MEMORY_TEMPLATE_V2.format(date=current_date)
         self.memory_path.parent.mkdir(parents=True, exist_ok=True)
-        self.memory_path.write_text(content, encoding="utf-8")
+        
+        async with LockManager.async_memory_lock():
+            async with aiofiles.open(self.memory_path, mode='w', encoding='utf-8') as f:
+                await f.write(content)
+                
         self._raw_content = content
         self._parse()
     
@@ -90,7 +132,6 @@ class MemoryParser:
         frontmatter_match = re.match(r'^---\s*\n(.*?)\n---\s*\n', content, re.DOTALL)
         if frontmatter_match:
             try:
-                import yaml
                 self._frontmatter = yaml.safe_load(frontmatter_match.group(1)) or {}
             except Exception:
                 self._frontmatter = {}
@@ -219,8 +260,8 @@ class MemoryParser:
         
         return result
     
-    def save(self) -> Path:
-        """保存到 MEMORY.md (带锁保护)"""
+    async def save(self) -> Path:
+        """保存到 MEMORY.md (带锁保护, Async)"""
         lines = []
         
         # 1. 写入 frontmatter
@@ -228,7 +269,6 @@ class MemoryParser:
         self._frontmatter["version"] = "2.0"
         self._frontmatter["type"] = "user_preferences"
         
-        import yaml
         lines.append("---")
         lines.append(yaml.dump(self._frontmatter, allow_unicode=True, default_flow_style=False).strip())
         lines.append("---")
@@ -264,8 +304,23 @@ class MemoryParser:
         content = "\n".join(lines)
         
         # 使用锁保护写入
-        with LockManager.memory_lock():
-            self.memory_path.write_text(content, encoding="utf-8")
+        async with LockManager.async_memory_lock():
+            async with aiofiles.open(self.memory_path, mode='w', encoding='utf-8') as f:
+                await f.write(content)
+        
+        # Refresh cache after save
+        path_str = str(self.memory_path)
+        try:
+            new_mtime = self.memory_path.stat().st_mtime
+        except Exception:
+            new_mtime = 0
+        self._raw_content = content
+        self._cache[path_str] = {
+            "mtime": new_mtime,
+            "content": content,
+            "frontmatter": copy.deepcopy(self._frontmatter),
+            "data": copy.deepcopy(self._data),
+        }
         
         return self.memory_path
     

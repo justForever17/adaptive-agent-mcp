@@ -4,9 +4,10 @@ Lock Manager - 跨进程并发控制
 提供文件级别的互斥锁，确保多个 MCP 客户端同时运行时不会发生数据竞争。
 """
 
+import asyncio
 from pathlib import Path
-from contextlib import contextmanager
-from typing import Optional, Generator
+from contextlib import contextmanager, asynccontextmanager
+from typing import Optional, Generator, AsyncGenerator
 from filelock import FileLock, Timeout
 from .config import config
 
@@ -121,3 +122,53 @@ class LockManager:
                 yield
         except Timeout:
             raise Timeout(f"无法获取 daily_log 锁，可能有其他进程正在写入。超时: {timeout}s")
+
+    # ─── Async Wrappers (Non-Blocking) ──────────────────────────────
+    # These offload the blocking FileLock.acquire() to a thread pool
+    # so the asyncio event loop remains responsive.
+
+    @classmethod
+    @asynccontextmanager
+    async def async_memory_lock(cls, timeout: float = 10) -> AsyncGenerator[None, None]:
+        """Non-blocking async version of memory_lock."""
+        lock = cls._get_memory_lock()
+        lock.timeout = timeout
+        try:
+            await asyncio.to_thread(lock.acquire)
+            yield
+        except Timeout:
+            raise Timeout(f"无法获取 MEMORY.md 锁 (async)。超时: {timeout}s")
+        finally:
+            if lock.is_locked:
+                lock.release()
+
+    @classmethod
+    @asynccontextmanager
+    async def async_knowledge_lock(cls, timeout: float = 10) -> AsyncGenerator[None, None]:
+        """Non-blocking async version of knowledge_lock."""
+        lock = cls._get_knowledge_lock()
+        lock.timeout = timeout
+        try:
+            await asyncio.to_thread(lock.acquire)
+            yield
+        except Timeout:
+            raise Timeout(f"无法获取 knowledge 锁 (async)。超时: {timeout}s")
+        finally:
+            if lock.is_locked:
+                lock.release()
+
+    @classmethod
+    @asynccontextmanager
+    async def async_daily_log_lock(cls, timeout: float = 10) -> AsyncGenerator[None, None]:
+        """Non-blocking async version of daily_log_lock."""
+        lock = cls._get_daily_log_lock()
+        lock.timeout = timeout
+        try:
+            await asyncio.to_thread(lock.acquire)
+            yield
+        except Timeout:
+            raise Timeout(f"无法获取 daily_log 锁 (async)。超时: {timeout}s")
+        finally:
+            if lock.is_locked:
+                lock.release()
+

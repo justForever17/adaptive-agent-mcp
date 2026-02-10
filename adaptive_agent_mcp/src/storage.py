@@ -1,3 +1,5 @@
+
+import aiofiles
 from pathlib import Path
 from datetime import datetime
 import yaml
@@ -40,6 +42,11 @@ class StorageValidation:
         (root / ".index").mkdir(exist_ok=True)
         (root / ".locks").mkdir(exist_ok=True)  # 锁文件目录
         
+        # Pre-create partition directories (areas)
+        areas_dir = root / "knowledge" / "areas"
+        for area in ["general", "chat", "coding", "writing", "projects"]:
+            (areas_dir / area).mkdir(parents=True, exist_ok=True)
+        
         # Create default MEMORY.md if missing (with lock protection)
         memory_file = root / "MEMORY.md"
         if not memory_file.exists():
@@ -69,21 +76,16 @@ class StorageValidation:
     def append_to_file(path: Path, content: str, use_lock: bool = True):
         """
         Append content to a file with newline handling.
-        
-        Args:
-            path: 目标文件路径
-            content: 要追加的内容
-            use_lock: 是否使用文件锁（默认 True）
         """
         if not path.parent.exists():
              path.parent.mkdir(parents=True, exist_ok=True)
         
-        # Decode unicode escape sequences if present (e.g., \\u4eca -> 今)
+        # Decode unicode escape sequences if present
         try:
             if '\\u' in content or '\\n' in content:
                 content = content.encode('utf-8').decode('unicode_escape')
         except Exception:
-            pass  # Keep original content if decode fails
+            pass
         
         def _do_write():
             with open(path, "a", encoding="utf-8") as f:
@@ -98,8 +100,38 @@ class StorageValidation:
             _do_write()
 
     @staticmethod
+    async def async_append_to_file(path: Path, content: str, use_lock: bool = True):
+        """
+        Async Append content to a file with newline handling.
+        """
+        if not path.parent.exists():
+             path.parent.mkdir(parents=True, exist_ok=True)
+        
+        # Decode unicode escape sequences
+        try:
+            if '\\u' in content or '\\n' in content:
+                content = content.encode('utf-8').decode('unicode_escape')
+        except Exception:
+            pass
+        
+        async def _do_write():
+            async with aiofiles.open(path, "a", encoding="utf-8") as f:
+                # check size async? Path.stat() is sync but fast.
+                if path.exists() and path.stat().st_size > 0:
+                    await f.write("\n\n")
+                await f.write(content)
+        
+        if use_lock:
+            # Async lock - offloads blocking acquire to thread pool
+            async with LockManager.async_daily_log_lock():
+                await _do_write()
+        else:
+            await _do_write()
+
+    @staticmethod
     def read_file(path: Path) -> str:
         if not path.exists():
             return ""
         return path.read_text(encoding="utf-8")
+
 

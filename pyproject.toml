@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "adaptive-agent-mcp"
-version = "0.5.5"
+version = "0.6.0"
 description = "Self-Evolving RAG for AI Agents — A cross-app persistent memory system where agents autonomously write, retrieve, and evolve their knowledge"
 readme = "README.md"
 license = "MIT"
@@ -40,7 +40,9 @@ dependencies = [
     "filelock>=3.16.0",
     "httpx>=0.28.0",
     "sqlite-vec>=0.1.6",
-    "networkx>=3.4"
+    "networkx>=3.4",
+    "aiofiles>=23.2.0",
+    "tenacity>=8.2.0"
 ]
 
 [project.urls]

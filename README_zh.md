@@ -215,18 +215,16 @@ AI: 已完成代码重构，以下是变更说明...
 
 ## 特性
 
-| 特性 | 说明 |
-|------|------|
-| **跨应用记忆互通** | 多个 AI 应用共享同一份记忆 |
-| **Scope 作用域隔离** | 全局偏好 vs 项目专属配置，互不干扰 |
-| **三层记忆架构** | 知识图谱 + 每日笔记 + 隐性知识 |
-| **语义搜索 (v0.4.0+)** | 基于 Embedding API 的向量检索 + Rerank 精排 |
-| **FTS5 全文搜索 (v0.4.0+)** | SQLite 内置全文搜索，BM25 排名 |
-| **知识图谱 (v0.5.0+)** | 基于 NetworkX 的实体关系存储，支持多跳推理 |
-| **并发安全 (v0.3.0+)** | 基于 filelock 的跨进程文件锁 |
-| **增量索引 (v0.3.0+)** | 基于 mtime 的智能增量索引 |
-| **时间权威** | MCP 是唯一时间来源，防止 Agent 时间幻觉 |
-| **知识演化** | 支持事实版本管理和 supersede 机制 |
+| 特性 | 说明 | 版本 |
+|------|------|:---:|
+| **三层记忆架构** | MEMORY.md + 每日日志 + 知识条目 | v0.1.0 |
+| **Scope 作用域隔离** | `project:xxx`, `app:xxx`, `global` | v0.2.0 |
+| **并发安全** | 跨进程文件锁 + 异步锁 | v0.3.0 |
+| **增量索引** | 基于 mtime 的智能增量索引 | v0.3.0 |
+| **混合搜索 (Hybrid)** | 向量 + FTS5 全文搜索 + RRF 融合 | v0.6.0 |
+| **区域分区 (Areas)** | 基于 Scope 的知识自动路由与存储 | v0.6.0 |
+| **知识图谱** | NetworkX 实体关系存储 | v0.5.0 |
+| **全异步架构** | 核心 I/O 全链路异步化 | v0.6.0 |
 
 ---
 
@@ -292,24 +290,29 @@ ADAPTIVE_RERANK_MODEL=Qwen/Qwen3-Reranker-8B
 
 ---
 
-## MCP 工具
+## MCP 工具 (14个)
 
-| 工具 | 功能 |
+### 会话与检索
+| 工具 | 说明 |
 |------|------|
 | `initialize_session` | 会话初始化，每次对话必须首先调用 |
-| `query_memory_headers` | 索引扫描，快速查找记忆位置 |
+| `query_memory_headers` | 索引扫描，快速浏览记忆文件元数据 |
 | `read_memory_content` | 读取指定文件的完整内容 |
 | `search_memory_content` | 基于 ripgrep 的全文搜索 |
-| `append_daily_log` | 写入每日笔记或知识图谱 |
-| `query_knowledge` | 查询知识库中的已保存知识 |
+
+### 记忆与知识
+| 工具 | 说明 |
+|------|------|
+| `update_preference` | 智能更新用户偏好 |
+| `append_daily_log` | 写入每日笔记或知识条目 |
+| `query_knowledge` | 混合搜索 (向量+FTS5+RRF) + 浏览回退模式 |
+| `delete_knowledge` | 软删除知识条目 (Status: deleted) |
 | `get_period_context` | 聚合周/月日志用于总结 |
 | `archive_period` | 保存周期总结 |
-| **语义搜索 (v0.4.0+)** | |
-| `semantic_search` | 基于向量的语义相似度搜索 |
-| `fulltext_search` | SQLite FTS5 全文搜索 (BM25) |
-| `index_document` | 将文档索引到向量数据库 |
-| `get_vector_stats` | 查看向量系统状态 |
-| **知识图谱 (v0.5.0+)** | |
+
+### 知识图谱
+| 工具 | 说明 |
+|------|------|
 | `extract_knowledge` | 从文本自动抽取实体关系 |
 | `add_knowledge_relation` | 手动添加实体关系 |
 | `query_knowledge_graph` | 查询实体/关系/统计 |

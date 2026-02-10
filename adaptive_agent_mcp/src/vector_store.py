@@ -8,6 +8,7 @@ VectorStore - 基于 sqlite-vec 的向量存储 + SQLite FTS5 全文搜索
 - 与 VectorClient 集成的完整 RAG 管道
 """
 
+import asyncio
 import sqlite3
 import struct
 from pathlib import Path
@@ -269,6 +270,11 @@ class VectorStore:
             按 BM25 排名的搜索结果
         """
         # FTS5 搜索，使用 BM25 排名
+        # Add prefix wildcards for each term (improved CJK support)
+        fts_query = " ".join([f"{term}*" for term in query.split() if term.strip()])
+        if not fts_query:
+            fts_query = query
+        
         cursor = self.conn.execute("""
             SELECT 
                 f.id,
@@ -281,7 +287,7 @@ class VectorStore:
             WHERE documents_fts MATCH ?
             ORDER BY rank
             LIMIT ?
-        """, (query, limit))
+        """, (fts_query, limit))
         
         results = []
         for row in cursor.fetchall():
@@ -336,6 +342,26 @@ class VectorStore:
     
     def __exit__(self, *args):
         self.close()
+
+    # ─── Async Wrappers (Non-Blocking) ──────────────────────────────
+    # Offload blocking sqlite3 ops to thread pool
+
+    async def async_add(self, doc_id: str, content: str, embedding: List[float],
+                        metadata: Optional[Dict[str, Any]] = None) -> bool:
+        return await asyncio.to_thread(self.add, doc_id, content, embedding, metadata)
+
+    async def async_search(self, query_embedding: List[float], top_k: int = 10,
+                           filter_metadata: Optional[Dict[str, Any]] = None) -> List[SearchResult]:
+        return await asyncio.to_thread(self.search, query_embedding, top_k, filter_metadata)
+
+    async def async_fulltext_search(self, query: str, limit: int = 20) -> List[FTSResult]:
+        return await asyncio.to_thread(self.fulltext_search, query, limit)
+
+    async def async_delete(self, doc_id: str) -> bool:
+        return await asyncio.to_thread(self.delete, doc_id)
+
+    async def async_count(self) -> int:
+        return await asyncio.to_thread(self.count)
 
 
 # 全局实例 (懒加载)

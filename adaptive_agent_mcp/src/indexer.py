@@ -1,192 +1,238 @@
+
 import os
 import json
 import re
+import hashlib
+import logging
+import asyncio
+import aiofiles
 from pathlib import Path
 from typing import Dict, Any, List, Optional
-from .config import config
+from datetime import datetime
 
-# Regex to capture YAML frontmatter
-YAML_FRONTMATTER_RE = re.compile(r"^---\s*\n(.*?)\n---\s*\n", re.DOTALL | re.MULTILINE)
+import yaml
+from .config import config
+from .vector_store import get_vector_store
+from .services.embedding import EmbeddingService
+from .router import KnowledgeRouter
+
+YAML_FRONTMATTER_RE = re.compile(r'^---\s*\n(.*?)\n---\s*\n', re.DOTALL)
+
+logger = logging.getLogger("adaptive-agent-mcp")
+HEADER_CHUNK_RE = re.compile(r'(^|\n)(?P<header>#{1,6}\s+.*?)(\n|$)', re.MULTILINE)
 
 class Indexer:
-    """
-    增量索引器 - 仅对变化的文件进行重新索引
-    
-    索引结构:
-    {
-        "metadata": {"last_build": 时间戳, "version": "2.0"},
-        "files": {
-            "path": {"date": ..., "tags": ..., "mtime": 修改时间戳}
-        }
-    }
-    """
-    
-    INDEX_VERSION = "2.0"
-    
     def __init__(self):
-        self._cached_index: Optional[Dict[str, Any]] = None
-
-    @property
-    def root(self) -> Path:
-        return config.storage_path
-
-    @property
-    def memory_dir(self) -> Path:
-        return self.root / "memory"
-
-    @property
-    def index_file(self) -> Path:
-        return self.root / ".index" / "memory_index.json"
-
-    def _parse_yaml(self, raw_yaml: str) -> Dict[str, Any]:
-        """Simple YAML parser for frontmatter."""
-        import yaml
+        self.memory_dir = config.storage_path / "memory"
+        self.index_file = config.storage_path / ".index" / "memory_index.json"
+        self._build_lock = asyncio.Lock()
+        
+    def _compute_hash(self, text: str) -> str:
+        return hashlib.md5(text.encode("utf-8")).hexdigest()
+        
+    async def _load_index(self) -> Dict[str, Any]:
+        if not self.index_file.exists():
+            return {"files": {}, "items": {}}
         try:
-            return yaml.safe_load(raw_yaml) or {}
-        except:
-            return {}
+            async with aiofiles.open(self.index_file, mode='r', encoding='utf-8') as f:
+                content = await f.read()
+                return json.loads(content)
+        except Exception:
+            return {"files": {}, "items": {}}
+            
+    async def _save_index(self, data: Dict[str, Any]):
+        self.index_file.parent.mkdir(parents=True, exist_ok=True)
+        async with aiofiles.open(self.index_file, mode='w', encoding='utf-8') as f:
+            await f.write(json.dumps(data, indent=2, ensure_ascii=False))
 
-    def _get_file_mtime(self, path: Path) -> float:
-        """获取文件修改时间戳"""
+    async def build_index(self, force_full: bool = False):
+        """
+        Async Incremental Indexing with Smart Chunking & Vectorization.
+        Guarded by asyncio.Lock to prevent concurrent corruption.
+        """
+        if self._build_lock.locked():
+            logger.info("Indexing already in progress, skipping.")
+            return
+        
+        async with self._build_lock:
+            await self._do_build_index(force_full)
+
+    async def _do_build_index(self, force_full: bool = False):
+        """Internal: actual indexing logic."""
+        logger.info("Starting Async Indexing...")
+        index_data = await self._load_index()
+        files_index = index_data.get("files", {})
+        items_index = index_data.get("items", {}) # Track ID -> hash
+        
+        vector_store = get_vector_store()
+        
         try:
-            return path.stat().st_mtime
-        except:
-            return 0.0
+            embed_service = EmbeddingService.get_instance()
+            can_embed = True
+        except ValueError as e:
+            logger.info(f"Embedding service unavailable: {e}")
+            can_embed = False
+        except Exception as e:
+             logger.warning(f"Embedding service error: {e}")
+             can_embed = False
 
-    def build_index(self, force_full: bool = False) -> Dict[str, Any]:
-        """
-        构建索引（增量模式）
-        
-        Args:
-            force_full: 如果为 True，强制全量重建
-        
-        Returns:
-            完整的索引数据
-        """
-        # 加载现有索引
-        existing_index = self._load_raw_index() if not force_full else None
-        existing_files = existing_index.get("files", {}) if existing_index else {}
-        
-        # 检查索引版本
-        if existing_index and existing_index.get("metadata", {}).get("version") != self.INDEX_VERSION:
-            print(f"索引版本不匹配，强制全量重建")
-            existing_files = {}
-        
-        new_files_data = {}
-        files_updated = 0
-        files_skipped = 0
-        
-        if not self.memory_dir.exists():
-            self._save_index({"metadata": self._build_metadata(), "files": {}})
-            return {}
-
-        # 收集所有当前存在的文件路径
-        current_file_paths = set()
-        
-        for root, _, files in os.walk(self.memory_dir):
+        # 1. Process Markdown Logs (Files)
+        walk_result = await asyncio.to_thread(lambda: list(os.walk(self.memory_dir)))
+        for root, _, files in walk_result:
             for file in files:
                 if not file.endswith(".md"):
                     continue
-                
+                    
                 path = Path(root) / file
                 rel_path = str(path.relative_to(self.memory_dir)).replace("\\", "/")
-                current_file_paths.add(rel_path)
                 
-                current_mtime = self._get_file_mtime(path)
+                # Check modification time
+                current_mtime = path.stat().st_mtime
+                cached_data = files_index.get(rel_path, {})
                 
-                # 检查是否需要重新索引
-                if rel_path in existing_files:
-                    cached_mtime = existing_files[rel_path].get("mtime", 0)
-                    if cached_mtime >= current_mtime:
-                        # 文件未修改，复用缓存
-                        new_files_data[rel_path] = existing_files[rel_path]
-                        files_skipped += 1
-                        continue
+                if not force_full and cached_data.get("mtime") == current_mtime:
+                    continue  # Skip unchanged
                 
-                # 需要重新索引此文件
+                logger.debug(f"Indexing File: {rel_path}")
                 try:
-                    with open(path, "r", encoding="utf-8") as f:
-                        chunk = f.read(1000)
-                    
-                    match = YAML_FRONTMATTER_RE.match(chunk)
+                    async with aiofiles.open(path, mode='r', encoding='utf-8') as f:
+                        content = await f.read()
+                        
+                    # Metadata Extraction
+                    metadata = {}
+                    match = YAML_FRONTMATTER_RE.match(content)
+                    body_content = content
                     if match:
-                        frontmatter_raw = match.group(1)
-                        metadata = self._parse_yaml(frontmatter_raw)
+                        try:
+                            metadata = yaml.safe_load(match.group(1)) or {}
+                            body_content = content[match.end():]
+                        except Exception:
+                            pass
+                            
+                    # Update File Index
+                    files_index[rel_path] = {
+                        "mtime": current_mtime,
+                        "metadata": metadata
+                    }
+                    
+                    if can_embed:
+                        # Smart Chunking
+                        # Split by H2/H3 headers or just paragraphs if standard
+                        # For daily logs (### HH:MM), we treat each entry as a chunk
+                        chunks = self._chunk_markdown(body_content, rel_path, metadata)
                         
-                        new_files_data[rel_path] = {
-                            "date": metadata.get("date"),
-                            "tags": metadata.get("tags", []),
-                            "summary": metadata.get("summary", ""),
-                            "type": metadata.get("type", "unknown"),
-                            "mtime": current_mtime
-                        }
-                        files_updated += 1
-                    else:
-                        # 没有 frontmatter，只记录基本信息
-                        new_files_data[rel_path] = {
-                            "date": None,
-                            "tags": [],
-                            "summary": "",
-                            "type": "plain",
-                            "mtime": current_mtime
-                        }
-                        files_updated += 1
+                        embeddings = await embed_service.embed_documents([c["text"] for c in chunks])
                         
+                        for i, chunk in enumerate(chunks):
+                            await vector_store.async_add(
+                                doc_id=chunk["id"],
+                                content=chunk["text"],
+                                embedding=embeddings[i],
+                                metadata=chunk["metadata"]
+                            )
+                            
                 except Exception as e:
-                    print(f"Error indexing {rel_path}: {e}")
-                    continue
-        
-        # 构建最终索引
-        final_index = {
-            "metadata": self._build_metadata(),
-            "files": new_files_data
-        }
-        
-        # 原子写入
-        self._save_index(final_index)
-        
-        print(f"索引完成: {files_updated} 更新, {files_skipped} 跳过")
-        
-        return new_files_data
+                    logger.warning(f"Error indexing {rel_path}: {e}")
 
-    def _build_metadata(self) -> Dict[str, Any]:
-        """构建索引元数据"""
-        import time
-        return {
-            "last_build": time.time(),
-            "version": self.INDEX_VERSION
-        }
-
-    def _load_raw_index(self) -> Optional[Dict[str, Any]]:
-        """加载原始索引文件"""
-        if not self.index_file.exists():
-            return None
-        try:
-            with open(self.index_file, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except:
-            return None
-
-    def _save_index(self, data: Dict[str, Any]):
-        """原子写入索引"""
-        self.index_file.parent.mkdir(parents=True, exist_ok=True)
-        with open(self.index_file, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-        self._cached_index = data
-
-    def load_index(self) -> Dict[str, Any]:
-        """加载索引（仅返回 files 部分，保持向后兼容）"""
-        if self._cached_index:
-            return self._cached_index.get("files", {})
+        # 2. Process Knowledge Items (Atomic Facts)
+        # Search all partitions via Router
+        partition_files = KnowledgeRouter.get_all_partition_files()
         
-        raw = self._load_raw_index()
-        if raw and "files" in raw:
-            self._cached_index = raw
-            return raw["files"]
-        
-        # 索引不存在或格式错误，重建
-        return self.build_index()
+        for p_file in partition_files:
+            try:
+                # Read synchronous here? Or async? Async is better.
+                if not p_file.exists():
+                     continue
+                     
+                async with aiofiles.open(p_file, mode='r', encoding='utf-8') as f:
+                    content = await f.read()
+                    items = json.loads(content)
+                    
+                new_items_to_embed = []
+                new_item_indices = []
+                
+                for i, item in enumerate(items):
+                    if item.get("status") != "active":
+                        continue
+                        
+                    item_id = item.get("id")
+                    if not item_id: continue
+                    
+                    fact_text = item.get("fact", "")
+                    current_hash = self._compute_hash(fact_text)
+                    
+                    # Check if Changed
+                    cached_item = items_index.get(item_id)
+                    if not force_full and cached_item and cached_item.get("hash") == current_hash:
+                        continue
+                    
+                    if can_embed:
+                        new_items_to_embed.append(fact_text)
+                        new_item_indices.append(i)
+                        
+                        # Update Index
+                        items_index[item_id] = {
+                            "hash": current_hash,
+                            "updated_at": datetime.now().isoformat()
+                        }
+                
+                # Batch Embed
+                if new_items_to_embed and can_embed:
+                    logger.debug(f"Embedding {len(new_items_to_embed)} items from {p_file.name}")
+                    embeddings = await embed_service.embed_documents(new_items_to_embed)
+                    
+                    for idx, emb in zip(new_item_indices, embeddings):
+                        item = items[idx]
+                        await vector_store.async_add(
+                            doc_id=item["id"],
+                            content=item["fact"],
+                            embedding=emb,
+                            metadata={
+                                "category": item.get("category"),
+                                "scope": item.get("scope"),
+                                "source": str(p_file)
+                            }
+                        )
 
-# Global instance
+            except Exception as e:
+                logger.warning(f"Error indexing items in {p_file}: {e}")
+
+        # Save Updated Index
+        await self._save_index({"files": files_index, "items": items_index})
+        logger.info("Indexing Complete.")
+        
+    def _chunk_markdown(self, content: str, source: str, metadata: Dict) -> List[Dict]:
+        """Split markdown content into semantic chunks."""
+        chunks = []
+        lines = content.split('\n')
+        current_chunk = []
+        current_header = "Start"
+        
+        for line in lines:
+            if re.match(r'^#{1,6}\s+', line):
+                if current_chunk:
+                    text = "\n".join(current_chunk).strip()
+                    if text:
+                        chunks.append({
+                            "id": f"{source}#{self._compute_hash(text)[:8]}",
+                            "text": f"[{current_header}] {text}",
+                            "metadata": {**metadata, "source": source, "header": current_header}
+                        })
+                current_chunk = []
+                current_header = line.strip().lstrip('#').strip()
+            
+            current_chunk.append(line)
+            
+        if current_chunk:
+            text = "\n".join(current_chunk).strip()
+            if text:
+                chunks.append({
+                    "id": f"{source}#{self._compute_hash(text)[:8]}",
+                    "text": f"[{current_header}] {text}",
+                    "metadata": {**metadata, "source": source, "header": current_header}
+                })
+                
+        return chunks
+
+# Singleton Instance
 indexer = Indexer()
-

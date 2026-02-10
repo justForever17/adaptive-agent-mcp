@@ -137,34 +137,36 @@ If your AI doesn't actively read/write memory, add this to your system prompt or
 
 | Feature | Description | Version |
 |:---|:---|:---:|
-| **Three-Layer Memory** | MEMORY.md + Daily Logs + Knowledge Graph | v0.1.0 |
+| **Three-Layer Memory** | MEMORY.md + Daily Logs + Knowledge Items | v0.1.0 |
 | **Scope Isolation** | `project:xxx`, `app:xxx`, `global` | v0.2.0 |
-| **Concurrent Safety** | Cross-process file locking | v0.3.0 |
+| **Concurrent Safety** | Cross-process file locking + async locks | v0.3.0 |
 | **Incremental Indexing** | mtime-based smart updates | v0.3.0 |
-| **Semantic Search** | Embedding + Rerank API | v0.4.0 |
-| **FTS5 Full-text** | SQLite built-in search | v0.4.0 |
+| **Hybrid Search** | Vector + FTS5 with RRF fusion | v0.6.0 |
+| **Area Partitioning** | Scope-based knowledge routing | v0.6.0 |
 | **Knowledge Graph** | NetworkX-based entity relations | v0.5.0 |
+| **Async Foundation** | Non-blocking I/O throughout | v0.6.0 |
 
 ---
 
-## Available Tools
+## Available Tools (14 tools)
 
-### Memory Management
+### Session & Retrieval
 | Tool | Description |
 |:---|:---|
 | `initialize_session` | Initialize session with user profile and recent context |
-| `append_daily_log` | Append content to today's log |
-| `update_preference` | Intelligently update user preferences |
-| `query_memory_headers` | Query memory file metadata |
+| `query_memory_headers` | Index scan — browse memory file metadata |
 | `read_memory_content` | Read complete memory file content |
 | `search_memory_content` | Full-text search using ripgrep |
 
-### Semantic Search
+### Memory & Knowledge
 | Tool | Description |
 |:---|:---|
-| `semantic_search` | Vector similarity search |
-| `fulltext_search` | FTS5 keyword search with BM25 ranking |
-| `index_document` | Index document to vector store |
+| `update_preference` | Intelligently update user preferences |
+| `append_daily_log` | Append content to daily log or knowledge items |
+| `query_knowledge` | Hybrid search (Vector + FTS5 + RRF fusion) with browse fallback |
+| `delete_knowledge` | Soft-delete knowledge items |
+| `get_period_context` | Aggregate weekly/monthly logs for summaries |
+| `archive_period` | Save period summaries |
 
 ### Knowledge Graph
 | Tool | Description |
@@ -180,17 +182,25 @@ If your AI doesn't actively read/write memory, add this to your system prompt or
 
 ```
 ~/.adaptive-agent/memory/
-├── MEMORY.md              # User preferences (scope-based)
-├── .knowledge/
-│   └── items.json         # Atomic facts
-├── .vector/
-│   └── vector.db          # SQLite + sqlite-vec
+├── MEMORY.md                          # User preferences (scope-based)
+├── knowledge/
+│   └── areas/
+│       ├── general/items.json         # Global knowledge
+│       ├── chat/items.json            # Chat-scope knowledge
+│       ├── coding/items.json          # Coding-scope knowledge
+│       ├── writing/items.json         # Writing-scope knowledge
+│       └── projects/{name}/items.json # Project-specific knowledge
+├── .index/
+│   ├── vectors.db                     # SQLite + sqlite-vec + FTS5
+│   └── index.json                     # Indexer metadata
 ├── .graph/
-│   └── knowledge.json     # NetworkX graph
-└── 2026/
-    └── 02_february/
-        └── week_06/
-            └── 2026-02-07.md  # Daily logs
+│   └── knowledge.json                 # NetworkX graph
+├── .locks/                            # File lock directory
+└── memory/
+    └── 2026/
+        └── 02_february/
+            └── week_07/
+                └── 2026-02-10.md      # Daily logs
 ```
 
 ---

@@ -18,6 +18,11 @@ class Settings(BaseSettings):
     rerank_base_url: Optional[str] = None
     rerank_api_key: Optional[str] = None
     rerank_model: str = "Qwen/Qwen3-Reranker-8B"
+    
+    # Search / Performance parameters
+    rrf_k: int = 60                       # RRF fusion constant
+    search_top_k: int = 50                # Vector/FTS fetch size
+    embedding_batch_concurrency: int = 5  # Ollama parallel limit
 
     class Config:
         env_prefix = "ADAPTIVE_"

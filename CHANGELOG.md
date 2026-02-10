@@ -2,6 +2,36 @@
 
 所有重要变更都会记录在此文件中。
 
+## [0.6.0] - 2026-02-10
+
+### 🚀 重大重构 (The Awakening)
+
+- **全异步架构 (Async Foundation)**: 重写核心 I/O 路径，彻底消除 Event Loop 阻塞。
+- **混合搜索 (Hybrid Search)**: 集成 `sqlite-vec` 向量检索 + SQLite FTS5 全文检索，通过 RRF (Reciprocal Rank Fusion) 算法融合结果。
+- **区域分区 (Area Partitioning)**: 实现了基于 Scope 的知识自动路由与存储 (`knowledge/areas/{partition}/items.json`)。
+- **延迟索引 (Deferred Indexing)**: 优化启动性能，将索引构建推迟到首次工具调用。
+
+### ✨ 新增
+
+- **工具增强**:
+  - `query_knowledge`: 支持浏览模式回退 (Browse Fallback)。
+  - `delete_knowledge`: 支持软删除知识条目 (Status: deleted)。
+  - `EmbeddingService`: 支持 Ollama 并发 Embedding (Bounded Concurrency)。
+  - `VectorStore`: 新增 5 个异步方法 (`async_add`, `async_search` 等)。
+
+### 🛠️ 修复与优化
+
+- **正确性**: 修复 `MemoryParser` 缓存共享可变状态问题；修复 FTS5 中文分词前缀搜索。
+- **可维护性**: 全局 `print()` 替换为 `logging`；提取所有 Magic Numbers 到 `config.py`。
+- **数据安全**: 实现 `MemoryParser` 读取时的 `deepcopy` 隔离。
+
+### 🗑️ 移除
+
+- 移除未注册的实验性工具: `semantic_search` (独立版), `fulltext_search`, `index_document` (功能已合并至 `query_knowledge` 和自动索引)。
+- 移除过时的 `vector_client.py` (被 `services/embedding.py` 取代)。
+
+---
+
 ## [0.5.4] - 2026-02-07
 
 ### 变更
