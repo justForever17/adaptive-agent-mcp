@@ -189,7 +189,7 @@ async def append_daily_log(
             if not target_file.parent.exists():
                 target_file.parent.mkdir(parents=True, exist_ok=True)
             
-            # 使用锁保护知识库读写 (Future: atomic db transaction)
+            # 使用锁保护知识库读写 (In-Process Serial Execution)
             async with LockManager.async_knowledge_lock():
                 items = []
                 if target_file.exists():
